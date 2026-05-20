@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>クアルト (Quarto)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 4px;
+    color: #e2b96f;
+    letter-spacing: 2px;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  .game-container {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ---- Board ---- */
+  .board-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #board {
+    display: grid;
+    grid-template-columns: repeat(4, 90px);
+    grid-template-rows: repeat(4, 90px);
+    gap: 6px;
+    background: #16213e;
+    padding: 10px;
+    border-radius: 12px;
+    border: 2px solid #0f3460;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+
+  .cell {
+    width: 90px;
+    height: 90px;
+    background: #0f3460;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    transition: background 0.2s, transform 0.1s;
+    position: relative;
+  }
+
+  .cell.placeable {
+    cursor: pointer;
+    background: #1a4a80;
+    box-shadow: inset 0 0 10px rgba(100,200,255,0.15);
+  }
+
+  .cell.placeable:hover {
+    background: #2060a0;
+    transform: scale(1.04);
+  }
+
+  /* winning cells highlight */
+  .cell.winner {
+    animation: winPulse 0.8s ease-in-out infinite alternate;
+  }
+
+  @keyframes winPulse {
+    from { background: #0f3460; box-shadow: none; }
+    to   { background: #2d5a1b; box-shadow: 0 0 20px #4caf50; }
+  }
+
+  /* ---- Piece SVG ---- */
+  .piece-svg {
+    display: block;
+  }
+
+  /* ---- Side Panels ---- */
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 220px;
+  }
+
+  .panel-box {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .panel-box h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin-bottom: 10px;
+  }
+
+  /* ---- Status ---- */
+  #status {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #e2b96f;
+    text-align: center;
+    min-height: 24px;
+  }
+
+  /* ---- Hand Piece ---- */
+  #hand-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #hand-area .label {
+    font-size: 0.75rem;
+    color: #aaa;
+  }
+
+  /* ---- Reserve Grid ---- */
+  #reserve {
+    display: grid;
+    grid-template-columns: repeat(4, 46px);
+    gap: 5px;
+  }
+
+  .reserve-slot {
+    width: 46px;
+    height: 46px;
+    background: #0f3460;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    transition: background 0.15s, transform 0.1s;
+    position: relative;
+  }
+
+  .reserve-slot.selectable {
+    cursor: pointer;
+    background: #1a4a80;
+  }
+
+  .reserve-slot.selectable:hover {
+    background: #2060a0;
+    transform: scale(1.08);
+  }
+
+  .reserve-slot.selected {
+    background: #2060a0;
+    box-shadow: 0 0 10px #e2b96f, inset 0 0 6px rgba(226,185,111,0.3);
+    border: 1px solid #e2b96f;
+  }
+
+  /* ---- Legend ---- */
+  .legend {
+    font-size: 0.72rem;
+    color: #999;
+    line-height: 1.7;
+  }
+
+  .legend span {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* ---- Buttons ---- */
+  button {
+    background: #e2b96f;
+    color: #1a1a2e;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    width: 100%;
+  }
+
+  button:hover { background: #f0ca80; transform: scale(1.02); }
+
+  /* ---- Overlay ---- */
+  #overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #overlay.show { display: flex; }
+
+  .overlay-box {
+    background: #16213e;
+    border: 2px solid #e2b96f;
+    border-radius: 16px;
+    padding: 40px 50px;
+    text-align: center;
+    max-width: 340px;
+  }
+
+  .overlay-box h2 { font-size: 2rem; color: #e2b96f; margin-bottom: 10px; }
+  .overlay-box p  { color: #ccc; margin-bottom: 24px; }
+
+  /* ---- Player turn indicator ---- */
+  .player-indicator {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  .pip {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    transition: background 0.3s, border-color 0.3s;
+  }
+
+  .pip.active {
+    background: #e2b96f;
+    border-color: #e2b96f;
+    box-shadow: 0 0 8px #e2b96f;
+  }
+</style>
+</head>
+<body>
+
+<h1>QUARTO</h1>
+<p class="subtitle">クアルト — 属性を揃えて4つ並べたら勝ち</p>
+
+<div class="player-indicator">
+  <div class="pip active" id="pip1" title="プレイヤー1"></div>
+  <div class="pip" id="pip2" title="プレイヤー2"></div>
+</div>
+
+<div id="status">プレイヤー1：相手に渡す駒を選んでください</div>
+
+<div class="game-container">
+
+  <!-- Left: reserve -->
+  <div class="side-panel">
+    <div class="panel-box">
+      <h3>残り駒</h3>
+      <div id="reserve"></div>
+    </div>
+    <div class="panel-box">
+      <h3>属性の見方</h3>
+      <div class="legend">
+        <b>高さ</b>：高い / 低い<br>
+        <b>色</b>：明 / 暗<br>
+        <b>形</b>：円 / 角<br>
+        <b>上部</b>：空洞 / 詰まり
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: board -->
+  <div class="board-area">
+    <div id="board"></div>
+    <div class="panel-box" id="hand-area" style="width:100%;text-align:center;">
+      <div class="label">手持ちの駒（相手から渡された）</div>
+      <div id="hand-display" style="display:flex;justify-content:center;margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Right: controls -->
+  <div class="side-panel">
+    <div class="panel-box">
+      <h3>選択中の駒</h3>
+      <div id="selected-display" style="display:flex;justify-content:center;min-height:60px;align-items:center;">
+        <span style="color:#555;font-size:0.8rem;">なし</span>
+      </div>
+    </div>
+    <div class="panel-box">
+      <h3>操作</h3>
+      <div id="action-hint" style="font-size:0.8rem;color:#aaa;margin-bottom:10px;min-height:40px;"></div>
+      <button id="confirm-btn" style="display:none;" onclick="confirmSelection()">確認</button>
+    </div>
+    <div class="panel-box">
+      <button onclick="resetGame()">最初からやり直す</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Win overlay -->
+<div id="overlay">
+  <div class="overlay-box">
+    <h2 id="overlay-title">🎉 勝利！</h2>
+    <p id="overlay-msg"></p>
+    <button onclick="resetGame()">もう一度プレイ</button>
+  </div>
+</div>
+
+<script>
+// =============================================
+//  QUARTO GAME ENGINE
+// =============================================
+
+// Each piece is 0-15 (4 bits):
+//  bit0 = height  (0=short,   1=tall)
+//  bit1 = color   (0=light,   1=dark)
+//  bit2 = shape   (0=square,  1=round)
+//  bit3 = top     (0=solid,   1=hollow)
+
+const ATTR = {
+  height: 0,  // bit 0
+  color:  1,  // bit 1
+  shape:  2,  // bit 2
+  top:    3,  // bit 3
+};
+
+// Game state
+let board        = new Array(16).fill(null); // board[row*4+col] = pieceId or null
+let reserve      = new Set([...Array(16).keys()]); // unplaced pieces
+let handPiece    = null;   // piece given to current player to place
+let selectedPiece= null;   // piece highlighted in reserve (to give)
+let currentPlayer= 1;      // 1 or 2
+let phase        = 'select'; // 'select' = choose piece to give | 'place' = place hand piece
+let gameOver     = false;
+let winCells     = [];
+
+// ---- Winning lines (indices into board[]) ----
+const LINES = [];
+// rows
+for (let r = 0; r < 4; r++) {
+  LINES.push([r*4, r*4+1, r*4+2, r*4+3]);
+}
+// cols
+for (let c = 0; c < 4; c++) {
+  LINES.push([c, c+4, c+8, c+12]);
+}
+// diagonals
+LINES.push([0,5,10,15]);
+LINES.push([3,6,9,12]);
+
+function checkQuarto() {
+  for (const line of LINES) {
+    const pieces = line.map(i => board[i]);
+    if (pieces.some(p => p === null)) continue;
+    // Check each attribute
+    for (let bit = 0; bit < 4; bit++) {
+      const vals = pieces.map(p => (p >> bit) & 1);
+      if (vals.every(v => v === 0) || vals.every(v => v === 1)) {
+        return line;
+      }
+    }
+  }
+  return null;
+}
+
+function isDraw() {
+  return reserve.size === 0 && handPiece === null && !checkQuarto();
+}
+
+// =============================================
+//  PIECE RENDERING (SVG)
+// =============================================
+
+function pieceSVG(pid, size) {
+  const tall    = (pid >> 0) & 1;
+  const dark    = (pid >> 1) & 1;
+  const round   = (pid >> 2) & 1;
+  const hollow  = (pid >> 3) & 1;
+
+  const s = size;
+  // proportions
+  const bodyH  = tall ? s * 0.60 : s * 0.38;
+  const bodyW  = round ? s * 0.52 : s * 0.52;
+  const baseH  = s * 0.12;
+  const baseW  = s * 0.62;
+  const cx     = s / 2;
+  const floor  = s * 0.88;
+  const top    = floor - bodyH;
+
+  const fill    = dark  ? '#4a3728' : '#d4b896';
+  const stroke  = dark  ? '#2a1a10' : '#8a6a48';
+  const shadow  = dark  ? '#2a1a10' : '#a07a58';
+  const highlight = dark ? '#6a4a38' : '#e8ceae';
+
+  let bodyPath = '';
+  if (round) {
+    const rx = bodyW / 2;
+    const ry = bodyH / 2;
+    const ellTop = top + ry;
+    bodyPath = `
+      <ellipse cx="${cx}" cy="${ellTop}" rx="${rx}" ry="${ry * 0.35}" fill="${shadow}" opacity="0.6"/>
+      <rect x="${cx - rx}" y="${ellTop}" width="${bodyW}" height="${bodyH - ry * 0.35}" fill="${fill}"/>
+      <ellipse cx="${cx}" cy="${ellTop + bodyH - ry * 0.35}" rx="${rx}" ry="${ry * 0.35}" fill="${shadow}"/>
+      <rect x="${cx - rx}" y="${ellTop}" width="${bodyW}" height="${bodyH - ry * 0.35}" fill="${fill}" opacity="0.5"/>
+      <ellipse cx="${cx}" cy="${ellTop}" rx="${rx}" ry="${ry * 0.35}" fill="${highlight}" opacity="0.7"/>
+    `;
+  } else {
+    const hw = bodyW / 2;
+    bodyPath = `
+      <rect x="${cx - hw}" y="${top}" width="${bodyW}" height="${bodyH}" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
+      <rect x="${cx - hw + 2}" y="${top + 2}" width="${hw * 0.5}" height="${bodyH - 4}" rx="2" fill="${highlight}" opacity="0.4"/>
+    `;
+  }
+
+  let topDecor = '';
+  if (hollow) {
+    const holeR = bodyW * 0.18;
+    topDecor = `<circle cx="${cx}" cy="${top + (round ? bodyH * 0.18 : bodyH * 0.15)}" r="${holeR}" fill="${shadow}" opacity="0.9"/>`;
+  }
+
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" class="piece-svg">
+    <!-- base -->
+    <ellipse cx="${cx}" cy="${floor}" rx="${baseW/2}" ry="${baseH/2}" fill="${shadow}"/>
+    <ellipse cx="${cx}" cy="${floor - baseH * 0.3}" rx="${baseW/2 * 0.95}" ry="${baseH/2 * 0.6}" fill="${fill}" stroke="${stroke}" stroke-width="0.5"/>
+    <!-- body -->
+    ${bodyPath}
+    <!-- hollow top -->
+    ${topDecor}
+  </svg>`;
+}
+
+// =============================================
+//  RENDER
+// =============================================
+
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if (winCells.includes(i)) cell.classList.add('winner');
+
+    if (board[i] !== null) {
+      cell.innerHTML = pieceSVG(board[i], 76);
+    } else if (phase === 'place' && !gameOver) {
+      cell.classList.add('placeable');
+      const idx = i;
+      cell.onclick = () => placeOnBoard(idx);
+    }
+    boardEl.appendChild(cell);
+  }
+}
+
+function renderReserve() {
+  const resEl = document.getElementById('reserve');
+  resEl.innerHTML = '';
+  for (let pid = 0; pid < 16; pid++) {
+    const slot = document.createElement('div');
+    slot.className = 'reserve-slot';
+
+    if (reserve.has(pid)) {
+      slot.innerHTML = pieceSVG(pid, 40);
+
+      if (phase === 'select' && !gameOver) {
+        slot.classList.add('selectable');
+        if (selectedPiece === pid) slot.classList.add('selected');
+        slot.onclick = () => selectFromReserve(pid);
+      }
+    }
+    resEl.appendChild(slot);
+  }
+}
+
+function renderHand() {
+  const el = document.getElementById('hand-display');
+  if (handPiece !== null) {
+    el.innerHTML = pieceSVG(handPiece, 64);
+  } else {
+    el.innerHTML = '<span style="color:#555;font-size:0.8rem;">なし</span>';
+  }
+}
+
+function renderSelected() {
+  const el = document.getElementById('selected-display');
+  if (selectedPiece !== null) {
+    el.innerHTML = pieceSVG(selectedPiece, 60);
+  } else {
+    el.innerHTML = '<span style="color:#555;font-size:0.8rem;">なし</span>';
+  }
+}
+
+function renderPips() {
+  document.getElementById('pip1').className = 'pip' + (currentPlayer === 1 ? ' active' : '');
+  document.getElementById('pip2').className = 'pip' + (currentPlayer === 2 ? ' active' : '');
+}
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+function setHint(msg) {
+  document.getElementById('action-hint').textContent = msg;
+}
+
+function showConfirmBtn(show) {
+  document.getElementById('confirm-btn').style.display = show ? 'block' : 'none';
+}
+
+function render() {
+  renderBoard();
+  renderReserve();
+  renderHand();
+  renderSelected();
+  renderPips();
+}
+
+// =============================================
+//  GAME ACTIONS
+// =============================================
+
+function selectFromReserve(pid) {
+  if (phase !== 'select' || gameOver) return;
+  selectedPiece = pid;
+  renderReserve();
+  renderSelected();
+  setHint(`この駒を相手（プレイヤー${3 - currentPlayer}）に渡しますか？`);
+  showConfirmBtn(true);
+}
+
+function confirmSelection() {
+  if (selectedPiece === null || phase !== 'select') return;
+
+  handPiece = selectedPiece;
+  reserve.delete(selectedPiece);
+  selectedPiece = null;
+
+  const giver = currentPlayer;
+  currentPlayer = 3 - currentPlayer;
+  phase = 'place';
+
+  showConfirmBtn(false);
+  setStatus(`プレイヤー${currentPlayer}：ボードに駒を置いてください`);
+  setHint('光っているマスをクリックして駒を置く');
+  render();
+}
+
+function placeOnBoard(idx) {
+  if (phase !== 'place' || gameOver || board[idx] !== null) return;
+
+  board[idx] = handPiece;
+  handPiece = null;
+
+  // Check win
+  const wl = checkQuarto();
+  if (wl) {
+    winCells = wl;
+    gameOver = true;
+    render();
+    setTimeout(() => showWin(`プレイヤー${currentPlayer} の勝利！`), 300);
+    return;
+  }
+
+  // Check draw
+  if (reserve.size === 0) {
+    gameOver = true;
+    render();
+    setTimeout(() => showDraw(), 300);
+    return;
+  }
+
+  phase = 'select';
+  setStatus(`プレイヤー${currentPlayer}：相手に渡す駒を選んでください`);
+  setHint('残り駒から1つ選んで相手に渡す');
+  render();
+}
+
+function showWin(msg) {
+  document.getElementById('overlay-title').textContent = '🎉 クアルト！';
+  document.getElementById('overlay-msg').textContent = msg;
+  document.getElementById('overlay').classList.add('show');
+}
+
+function showDraw() {
+  document.getElementById('overlay-title').textContent = '引き分け';
+  document.getElementById('overlay-msg').textContent = '全ての駒が置かれましたが、誰も勝利条件を満たしませんでした。';
+  document.getElementById('overlay').classList.add('show');
+}
+
+// =============================================
+//  INIT / RESET
+// =============================================
+
+function resetGame() {
+  board         = new Array(16).fill(null);
+  reserve       = new Set([...Array(16).keys()]);
+  handPiece     = null;
+  selectedPiece = null;
+  currentPlayer = 1;
+  phase         = 'select';
+  gameOver      = false;
+  winCells      = [];
+
+  document.getElementById('overlay').classList.remove('show');
+  showConfirmBtn(false);
+  setStatus(`プレイヤー1：相手に渡す駒を選んでください`);
+  setHint('残り駒から1つ選んで相手に渡す');
+  render();
+}
+
+resetGame();
+</script>
+</body>
+</html>
