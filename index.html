@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>クアルト</title>
+<style>
+:root {
+  --bg:      #1a1a2e;
+  --panel:   #16213e;
+  --deep:    #0f3460;
+  --accent:  #e2b96f;
+  --text:    #eee;
+  --muted:   #778;
+  --danger:  #4caf50;
+
+  /* 4列に収まるセルサイズ (ボード・駒置き場共通) */
+  --cell: min(78px, calc((100vw - 52px) / 4));
+}
+
+*, *::before, *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html { height: 100%; }
+
+body {
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ===================== HEADER ===================== */
+header {
+  width: 100%;
+  background: var(--panel);
+  border-bottom: 1px solid var(--deep);
+  padding: 10px 16px 10px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: var(--accent);
+}
+
+.chips { display: flex; gap: 8px; }
+
+.chip {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: var(--deep);
+  color: var(--muted);
+  border: 2px solid transparent;
+  transition: all 0.25s;
+}
+.chip.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* ===================== STATUS ===================== */
+#status-bar {
+  width: 100%;
+  min-height: 48px;
+  background: #12182a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent);
+  border-bottom: 1px solid var(--deep);
+}
+
+/* ===================== MAIN ===================== */
+main {
+  width: 100%;
+  max-width: 480px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px 20px;
+}
+
+/* ===================== BOARD ===================== */
+#board {
+  display: grid;
+  grid-template-columns: repeat(4, var(--cell));
+  grid-template-rows: repeat(4, var(--cell));
+  gap: 5px;
+  padding: 8px;
+  background: var(--panel);
+  border-radius: 14px;
+  border: 1.5px solid var(--deep);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+}
+
+.cell {
+  width: var(--cell);
+  height: var(--cell);
+  background: var(--deep);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.cell.placeable {
+  cursor: pointer;
+  background: #1b4680;
+  box-shadow: inset 0 0 10px rgba(100,180,255,0.1);
+  touch-action: manipulation;
+}
+.cell.placeable:active { background: #2460a8; transform: scale(0.94); }
+
+.cell.winner { animation: pulse 0.65s ease-in-out infinite alternate; }
+@keyframes pulse {
+  from { background: var(--deep); }
+  to   { background: #2b5518; box-shadow: 0 0 18px var(--danger); }
+}
+
+/* ===================== CARD ===================== */
+.card {
+  width: 100%;
+  background: var(--panel);
+  border: 1.5px solid var(--deep);
+  border-radius: 13px;
+  padding: 12px;
+}
+
+.card-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* ===================== HAND ===================== */
+#hand-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76px;
+}
+
+/* ===================== RESERVE ===================== */
+#reserve {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.res-slot {
+  aspect-ratio: 1;
+  background: var(--deep);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.res-slot.selectable {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.res-slot.selectable:active { transform: scale(0.91); }
+
+.res-slot.selected {
+  background: #1e3d72;
+  box-shadow: 0 0 0 2.5px var(--accent);
+}
+
+/* ===================== BUTTONS ===================== */
+.btn-primary {
+  display: none;
+  width: 100%;
+  padding: 15px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 13px;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-primary:active { background: #f0ca80; transform: scale(0.97); }
+.btn-primary.show { display: block; }
+
+.btn-ghost {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px solid var(--deep);
+  border-radius: 13px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-ghost:active { color: var(--text); border-color: #3a5a80; }
+
+/* ===================== OVERLAYS ===================== */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.82);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+.overlay.show { display: flex; }
+
+.overlay-box {
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: 20px;
+  padding: 28px 22px 24px;
+  text-align: center;
+  width: 100%;
+  max-width: 360px;
+}
+
+.overlay-box h2 { font-size: 1.7rem; color: var(--accent); }
+.overlay-box .ov-sub {
+  font-size: 0.88rem;
+  color: #aaa;
+  margin: 10px 0 22px;
+  line-height: 1.5;
+}
+
+.ov-piece { display: flex; justify-content: center; margin: 18px 0; }
+
+.ov-btn {
+  width: 100%;
+  padding: 15px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 13px;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+  margin-top: 6px;
+}
+.ov-btn:active { background: #f0ca80; }
+.ov-btn.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px solid var(--deep);
+  margin-top: 10px;
+}
+
+/* ===================== LEGEND ===================== */
+.legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  font-size: 0.72rem;
+  color: #999;
+  line-height: 1.6;
+}
+.legend span { color: var(--accent); }
+
+/* ===================== DESKTOP / LANDSCAPE ===================== */
+@media (min-width: 640px) {
+  :root { --cell: 86px; }
+
+  main {
+    max-width: 900px;
+    flex-direction: row;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    padding: 20px;
+    gap: 20px;
+  }
+
+  #board-col { flex: 0 0 auto; }
+  #side-col  { flex: 1; min-width: 220px; max-width: 280px; display: flex; flex-direction: column; gap: 12px; }
+}
+
+@media (max-width: 639px) {
+  #side-col { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Pass Device Overlay ===== -->
+<div class="overlay" id="pass-overlay">
+  <div class="overlay-box">
+    <h2 id="pass-heading">P2 の番</h2>
+    <div class="ov-piece" id="pass-piece"></div>
+    <p class="ov-sub" id="pass-sub"></p>
+    <button class="ov-btn" onclick="dismissPass()">準備OK、置きます →</button>
+  </div>
+</div>
+
+<!-- ===== Result Overlay ===== -->
+<div class="overlay" id="result-overlay">
+  <div class="overlay-box">
+    <h2 id="res-title"></h2>
+    <p class="ov-sub" id="res-sub"></p>
+    <button class="ov-btn" onclick="resetGame()">もう一度プレイ</button>
+    <button class="ov-btn ghost" onclick="document.getElementById('result-overlay').classList.remove('show')">結果を見る</button>
+  </div>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header>
+  <h1>QUARTO</h1>
+  <div class="chips">
+    <div class="chip active" id="chip1">P1</div>
+    <div class="chip"        id="chip2">P2</div>
+  </div>
+</header>
+
+<div id="status-bar">P1：相手に渡す駒を選んでください</div>
+
+<!-- ===== MAIN ===== -->
+<main>
+  <div id="board-col">
+    <div id="board"></div>
+  </div>
+
+  <div id="side-col">
+    <!-- Hand piece -->
+    <div class="card">
+      <div class="card-label" id="hand-label">手持ちの駒</div>
+      <div id="hand-inner"></div>
+    </div>
+
+    <!-- Reserve -->
+    <div class="card">
+      <div class="card-label">残り駒 ― タップして相手に渡す</div>
+      <div id="reserve"></div>
+    </div>
+
+    <!-- Confirm -->
+    <button class="btn-primary" id="confirm-btn" onclick="confirmSelection()">
+      この駒を相手に渡す ✓
+    </button>
+
+    <!-- Legend -->
+    <div class="card">
+      <div class="card-label">属性の見方</div>
+      <div class="legend">
+        <div><span>高さ</span>：高い／低い</div>
+        <div><span>色</span>：明るい／暗い</div>
+        <div><span>形</span>：円柱／角柱</div>
+        <div><span>上部</span>：空洞／詰まり</div>
+      </div>
+    </div>
+
+    <!-- Reset -->
+    <button class="btn-ghost" onclick="resetGame()">最初からやり直す</button>
+  </div>
+</main>
+
+<script>
+// ========================================================
+//  GAME STATE
+// ========================================================
+
+// piece = 4 bits
+//  bit0 height : 0=低い  1=高い
+//  bit1 color  : 0=明    1=暗
+//  bit2 shape  : 0=角    1=円
+//  bit3 top    : 0=詰まり 1=空洞
+
+let board = new Array(16).fill(null);
+let reserve = new Set([...Array(16).keys()]);
+let handPiece = null;
+let selectedPiece = null;
+let currentPlayer = 1;
+let phase = 'select'; // 'select' | 'place'
+let gameOver = false;
+let winCells = [];
+
+// All lines that can form a Quarto
+const LINES = [];
+for (let r = 0; r < 4; r++) LINES.push([r*4, r*4+1, r*4+2, r*4+3]);
+for (let c = 0; c < 4; c++) LINES.push([c, c+4, c+8, c+12]);
+LINES.push([0,5,10,15], [3,6,9,12]);
+
+function checkQuarto() {
+  for (const line of LINES) {
+    const ps = line.map(i => board[i]);
+    if (ps.some(p => p === null)) continue;
+    for (let bit = 0; bit < 4; bit++) {
+      const vs = ps.map(p => (p >> bit) & 1);
+      if (vs.every(v => v === 0) || vs.every(v => v === 1)) return line;
+    }
+  }
+  return null;
+}
+
+// ========================================================
+//  SVG PIECE RENDERER
+// ========================================================
+
+function pieceSVG(pid, size) {
+  const tall   = (pid >> 0) & 1;
+  const dark   = (pid >> 1) & 1;
+  const round  = (pid >> 2) & 1;
+  const hollow = (pid >> 3) & 1;
+
+  const s  = size;
+  const cx = s / 2;
+  const bodyH = tall ? s * 0.57 : s * 0.34;
+  const bodyW = s * 0.50;
+  const baseW = s * 0.64;
+  const baseH = s * 0.13;
+  const floor = s * 0.88;
+  const top   = floor - bodyH;
+
+  const fill  = dark ? '#4a3728' : '#d4b896';
+  const shade = dark ? '#2a1a10' : '#a07a58';
+  const hi    = dark ? '#6a4a38' : '#e8ceae';
+  const str   = dark ? '#2a1a10' : '#8a6a48';
+
+  let body = '';
+  if (round) {
+    const rx = bodyW / 2;
+    const et = top + bodyH * 0.12;
+    body = `
+      <ellipse cx="${cx}" cy="${et}" rx="${rx}" ry="${bodyH*0.12}" fill="${shade}" opacity=".7"/>
+      <rect x="${cx-rx}" y="${et}" width="${bodyW}" height="${bodyH*0.88}" fill="${fill}"/>
+      <ellipse cx="${cx}" cy="${et+bodyH*0.88}" rx="${rx}" ry="${bodyH*0.12}" fill="${shade}"/>
+      <ellipse cx="${cx}" cy="${et}" rx="${rx}" ry="${bodyH*0.12}" fill="${hi}" opacity=".55"/>`;
+  } else {
+    const hw = bodyW / 2;
+    body = `
+      <rect x="${cx-hw}" y="${top}" width="${bodyW}" height="${bodyH}" rx="3" fill="${fill}" stroke="${str}" stroke-width="1"/>
+      <rect x="${cx-hw+2}" y="${top+2}" width="${hw*0.42}" height="${bodyH-4}" rx="2" fill="${hi}" opacity=".32"/>`;
+  }
+
+  let hole = '';
+  if (hollow) {
+    const hr = bodyW * 0.16;
+    const hy = round ? top + bodyH * 0.14 : top + bodyH * 0.13;
+    hole = `<circle cx="${cx}" cy="${hy}" r="${hr}" fill="${shade}" opacity=".92"/>`;
+  }
+
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" style="display:block;pointer-events:none;">
+    <ellipse cx="${cx}" cy="${floor}"          rx="${baseW/2}"      ry="${baseH/2}"      fill="${shade}"/>
+    <ellipse cx="${cx}" cy="${floor-baseH*.3}" rx="${baseW/2*.95}"  ry="${baseH/2*.6}"   fill="${fill}" stroke="${str}" stroke-width=".5"/>
+    ${body}${hole}
+  </svg>`;
+}
+
+// ========================================================
+//  RENDER
+// ========================================================
+
+function cellPx() {
+  return Math.min(78, Math.floor((window.innerWidth - 52) / 4));
+}
+
+function renderBoard() {
+  const el = document.getElementById('board');
+  const cs = cellPx();
+  el.style.gridTemplateColumns = `repeat(4,${cs}px)`;
+  el.style.gridTemplateRows    = `repeat(4,${cs}px)`;
+  el.innerHTML = '';
+
+  for (let i = 0; i < 16; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.width = cell.style.height = cs + 'px';
+    if (winCells.includes(i)) cell.classList.add('winner');
+
+    if (board[i] !== null) {
+      cell.innerHTML = pieceSVG(board[i], cs - 10);
+    } else if (phase === 'place' && !gameOver) {
+      cell.classList.add('placeable');
+      const idx = i;
+      cell.addEventListener('click', () => placeOnBoard(idx));
+    }
+    el.appendChild(cell);
+  }
+}
+
+function renderReserve() {
+  const el = document.getElementById('reserve');
+  const cs = cellPx();
+  el.innerHTML = '';
+
+  for (let pid = 0; pid < 16; pid++) {
+    const slot = document.createElement('div');
+    slot.className = 'res-slot';
+    slot.style.width = slot.style.height = cs + 'px';
+
+    if (reserve.has(pid)) {
+      slot.innerHTML = pieceSVG(pid, cs - 10);
+      if (phase === 'select' && !gameOver) {
+        slot.classList.add('selectable');
+        if (selectedPiece === pid) slot.classList.add('selected');
+        const p = pid;
+        slot.addEventListener('click', () => selectFromReserve(p));
+      }
+    }
+    el.appendChild(slot);
+  }
+}
+
+function renderHand() {
+  const inner = document.getElementById('hand-inner');
+  const label = document.getElementById('hand-label');
+  if (handPiece !== null) {
+    label.textContent = `手持ちの駒（P${currentPlayer} がボードに置く）`;
+    inner.innerHTML = pieceSVG(handPiece, 70);
+  } else {
+    label.textContent = '手持ちの駒';
+    inner.innerHTML = `<span style="color:#445;font-size:.8rem;padding:16px 0;display:block">なし</span>`;
+  }
+}
+
+function renderChips() {
+  document.getElementById('chip1').className = 'chip' + (currentPlayer === 1 ? ' active' : '');
+  document.getElementById('chip2').className = 'chip' + (currentPlayer === 2 ? ' active' : '');
+}
+
+function setStatus(msg) { document.getElementById('status-bar').textContent = msg; }
+
+function showConfirm(show) {
+  document.getElementById('confirm-btn').classList.toggle('show', show);
+}
+
+function render() {
+  renderBoard();
+  renderReserve();
+  renderHand();
+  renderChips();
+}
+
+// ========================================================
+//  ACTIONS
+// ========================================================
+
+function selectFromReserve(pid) {
+  if (phase !== 'select' || gameOver) return;
+  selectedPiece = pid;
+  renderReserve();
+  showConfirm(true);
+  setStatus(`P${currentPlayer}：選択済み → 確認ボタンで渡す`);
+}
+
+function confirmSelection() {
+  if (selectedPiece === null) return;
+  const given = selectedPiece;
+  const next  = 3 - currentPlayer;
+
+  // Show pass-device overlay
+  document.getElementById('pass-heading').textContent = `P${next} の番`;
+  document.getElementById('pass-sub').textContent =
+    `P${currentPlayer} がこの駒を選びました。\nP${next} に端末を渡してください。`;
+  document.getElementById('pass-piece').innerHTML = pieceSVG(given, 108);
+  document.getElementById('pass-overlay').classList.add('show');
+
+  // Commit state (player can now flip the phone)
+  handPiece = given;
+  reserve.delete(given);
+  selectedPiece = null;
+  showConfirm(false);
+}
+
+function dismissPass() {
+  document.getElementById('pass-overlay').classList.remove('show');
+  currentPlayer = 3 - currentPlayer;
+  phase = 'place';
+  setStatus(`P${currentPlayer}：光っているマスに駒を置いてください`);
+  render();
+}
+
+function placeOnBoard(idx) {
+  if (phase !== 'place' || gameOver || board[idx] !== null) return;
+
+  board[idx] = handPiece;
+  handPiece  = null;
+
+  const wl = checkQuarto();
+  if (wl) {
+    winCells = wl;
+    gameOver = true;
+    render();
+    setTimeout(() => {
+      document.getElementById('res-title').textContent = '🎉 クアルト！';
+      document.getElementById('res-sub').textContent   = `P${currentPlayer} の勝利！`;
+      document.getElementById('result-overlay').classList.add('show');
+    }, 380);
+    return;
+  }
+
+  if (reserve.size === 0) {
+    gameOver = true;
+    render();
+    setTimeout(() => {
+      document.getElementById('res-title').textContent = '引き分け';
+      document.getElementById('res-sub').textContent   = '全ての駒が置かれましたが、揃いませんでした。';
+      document.getElementById('result-overlay').classList.add('show');
+    }, 380);
+    return;
+  }
+
+  phase = 'select';
+  setStatus(`P${currentPlayer}：相手に渡す駒を選んでください`);
+  render();
+}
+
+// ========================================================
+//  RESET
+// ========================================================
+
+function resetGame() {
+  board = new Array(16).fill(null);
+  reserve = new Set([...Array(16).keys()]);
+  handPiece = selectedPiece = null;
+  currentPlayer = 1;
+  phase = 'select';
+  gameOver = false;
+  winCells = [];
+  document.getElementById('result-overlay').classList.remove('show');
+  document.getElementById('pass-overlay').classList.remove('show');
+  showConfirm(false);
+  setStatus('P1：相手に渡す駒を選んでください');
+  render();
+}
+
+// Re-render on orientation change
+window.addEventListener('resize', () => { render(); }, { passive: true });
+
+resetGame();
+</script>
+</body>
+</html>
