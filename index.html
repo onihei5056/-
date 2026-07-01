@@ -2,10 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>クアルト</title>
+<title>ブレインマップ</title>
 <style>
 :root {
   --bg:      #1a1a2e;
@@ -13,665 +13,979 @@
   --deep:    #0f3460;
   --accent:  #e2b96f;
   --text:    #eee;
-  --muted:   #778;
-  --danger:  #4caf50;
-
-  /* 4列に収まるセルサイズ (ボード・駒置き場共通) */
-  --cell: min(78px, calc((100vw - 52px) / 4));
+  --muted:   #889;
+  --danger:  #e2536f;
 }
 
-*, *::before, *::after {
+* , *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;
   -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
 }
 
-html { height: 100%; }
+html, body { height: 100%; overscroll-behavior: none; }
 
 body {
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, 'Helvetica Neue', 'Hiragino Sans', Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-height: 100%;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  overflow-x: hidden;
-  user-select: none;
-  -webkit-user-select: none;
-  padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
 }
 
 /* ===================== HEADER ===================== */
 header {
+  flex: none;
   width: 100%;
   background: var(--panel);
   border-bottom: 1px solid var(--deep);
-  padding: 10px 16px 10px;
+  padding: 10px 12px;
   padding-top: calc(10px + env(safe-area-inset-top));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  gap: 8px;
+  z-index: 20;
 }
 
 header h1 {
-  font-size: 1.3rem;
+  font-size: 1.05rem;
   font-weight: 900;
-  letter-spacing: 4px;
+  letter-spacing: 2px;
   color: var(--accent);
+  white-space: nowrap;
 }
 
-.chips { display: flex; gap: 8px; }
+.hbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
-.chip {
-  padding: 5px 14px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 800;
+.ibtn {
   background: var(--deep);
-  color: var(--muted);
-  border: 2px solid transparent;
-  transition: all 0.25s;
+  color: var(--text);
+  border: none;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
 }
-.chip.active {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
+.ibtn:active { background: #1b4680; transform: scale(0.96); }
+.ibtn.warn { color: var(--danger); }
+
+/* ===================== CANVAS ===================== */
+#canvas-wrap {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.06) 1.5px, transparent 1.5px) 0 0/28px 28px,
+    var(--bg);
+  touch-action: none;
 }
 
-/* ===================== STATUS ===================== */
-#status-bar {
-  width: 100%;
-  min-height: 48px;
-  background: #12182a;
+#world {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+#lines {
+  position: absolute;
+  top: 0; left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+#nodes-layer {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+}
+
+/* ===================== NODE ===================== */
+.node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  width: max-content;
+  max-width: 220px;
+  min-width: 44px;
+  padding: 9px 16px;
+  border-radius: 20px;
+  background: var(--nc, var(--deep));
+  color: #14141f;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  border: 2px solid rgba(255,255,255,0.18);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.node.root {
+  border-radius: 16px;
+  font-size: 16px;
+  padding: 14px 22px;
+  background: var(--accent);
+  border-color: #fff3;
+  box-shadow: 0 4px 16px rgba(226,185,111,0.35);
+}
+.node.selected {
+  box-shadow: 0 0 0 3px #fff, 0 4px 14px rgba(0,0,0,0.4);
+}
+.node.dragging { cursor: grabbing; opacity: 0.92; }
+
+.node-text {
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: block;
+}
+.node-text[contenteditable="true"] {
+  cursor: text;
+  background: rgba(255,255,255,0.35);
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+
+.toggle-btn {
+  position: absolute;
+  right: -9px;
+  bottom: -9px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1.5px solid rgba(255,255,255,0.3);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--accent);
-  border-bottom: 1px solid var(--deep);
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
-/* ===================== MAIN ===================== */
-main {
-  width: 100%;
-  max-width: 480px;
-  flex: 1;
+/* ===================== SELECTION ACTION BAR ===================== */
+#action-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 30;
+  display: none;
+  gap: 6px;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  background: var(--panel);
+  border-top: 1px solid var(--deep);
+  overflow-x: auto;
+}
+#action-bar.show { display: flex; }
+#action-bar .ibtn { flex: 1 1 0; min-width: 70px; }
+
+/* ===================== PALETTE POPOVER ===================== */
+#palette-pop {
+  position: fixed;
+  z-index: 40;
+  display: none;
+  background: var(--panel);
+  border: 1.5px solid var(--deep);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+}
+#palette-pop.show { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.swatch {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.25);
+  touch-action: manipulation;
+}
+.swatch:active { transform: scale(0.9); }
+
+/* ===================== ZOOM CONTROLS ===================== */
+#zoom-ctrl {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 10px 20px;
-}
-
-/* ===================== BOARD ===================== */
-#board {
-  display: grid;
-  grid-template-columns: repeat(4, var(--cell));
-  grid-template-rows: repeat(4, var(--cell));
-  gap: 5px;
-  padding: 8px;
-  background: var(--panel);
-  border-radius: 14px;
-  border: 1.5px solid var(--deep);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.45);
-}
-
-.cell {
-  width: var(--cell);
-  height: var(--cell);
-  background: var(--deep);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-.cell.placeable {
-  cursor: pointer;
-  background: #1b4680;
-  box-shadow: inset 0 0 10px rgba(100,180,255,0.1);
-  touch-action: manipulation;
-}
-.cell.placeable:active { background: #2460a8; transform: scale(0.94); }
-
-.cell.winner { animation: pulse 0.65s ease-in-out infinite alternate; }
-@keyframes pulse {
-  from { background: var(--deep); }
-  to   { background: #2b5518; box-shadow: 0 0 18px var(--danger); }
-}
-
-/* ===================== CARD ===================== */
-.card {
-  width: 100%;
-  background: var(--panel);
-  border: 1.5px solid var(--deep);
-  border-radius: 13px;
-  padding: 12px;
-}
-
-.card-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-/* ===================== HAND ===================== */
-#hand-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 76px;
-}
-
-/* ===================== RESERVE ===================== */
-#reserve {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+  z-index: 15;
+  transition: bottom 0.15s;
+}
+body.has-selection #zoom-ctrl,
+body.has-selection #hint {
+  bottom: calc(72px + env(safe-area-inset-bottom));
+}
+#zoom-ctrl .ibtn {
+  width: 40px; height: 40px;
+  padding: 0;
+  font-size: 1.1rem;
+  border-radius: 12px;
+  opacity: 0.9;
 }
 
-.res-slot {
-  aspect-ratio: 1;
-  background: var(--deep);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-}
-
-.res-slot.selectable {
-  cursor: pointer;
-  touch-action: manipulation;
-}
-.res-slot.selectable:active { transform: scale(0.91); }
-
-.res-slot.selected {
-  background: #1e3d72;
-  box-shadow: 0 0 0 2.5px var(--accent);
-}
-
-/* ===================== BUTTONS ===================== */
-.btn-primary {
-  display: none;
-  width: 100%;
-  padding: 15px;
-  background: var(--accent);
-  color: var(--bg);
-  border: none;
-  border-radius: 13px;
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: background 0.15s, transform 0.1s;
-}
-.btn-primary:active { background: #f0ca80; transform: scale(0.97); }
-.btn-primary.show { display: block; }
-
-.btn-ghost {
-  width: 100%;
-  padding: 12px;
-  background: transparent;
-  color: var(--muted);
-  border: 1.5px solid var(--deep);
-  border-radius: 13px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: color 0.15s, border-color 0.15s;
-}
-.btn-ghost:active { color: var(--text); border-color: #3a5a80; }
-
-/* ===================== OVERLAYS ===================== */
-.overlay {
-  display: none;
+/* ===================== HINT ===================== */
+#hint {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.82);
-  z-index: 100;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
-}
-.overlay.show { display: flex; }
-
-.overlay-box {
-  background: var(--panel);
-  border: 2px solid var(--accent);
-  border-radius: 20px;
-  padding: 28px 22px 24px;
-  text-align: center;
-  width: 100%;
-  max-width: 360px;
-}
-
-.overlay-box h2 { font-size: 1.7rem; color: var(--accent); }
-.overlay-box .ov-sub {
-  font-size: 0.88rem;
-  color: #aaa;
-  margin: 10px 0 22px;
-  line-height: 1.5;
-}
-
-.ov-piece { display: flex; justify-content: center; margin: 18px 0; }
-
-.ov-btn {
-  width: 100%;
-  padding: 15px;
-  background: var(--accent);
-  color: var(--bg);
-  border: none;
-  border-radius: 13px;
-  font-size: 1rem;
-  font-weight: 900;
-  cursor: pointer;
-  touch-action: manipulation;
-  margin-top: 6px;
-}
-.ov-btn:active { background: #f0ca80; }
-.ov-btn.ghost {
-  background: transparent;
+  left: 12px;
+  bottom: 12px;
+  max-width: 60%;
+  font-size: 0.68rem;
   color: var(--muted);
-  border: 1.5px solid var(--deep);
-  margin-top: 10px;
+  line-height: 1.5;
+  z-index: 15;
+  pointer-events: none;
+  transition: bottom 0.15s;
 }
 
-/* ===================== LEGEND ===================== */
-.legend {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 12px;
-  font-size: 0.72rem;
-  color: #999;
-  line-height: 1.6;
-}
-.legend span { color: var(--accent); }
+/* ===================== FILE INPUT (hidden) ===================== */
+#import-input { display: none; }
 
-/* ===================== DESKTOP / LANDSCAPE ===================== */
-@media (min-width: 640px) {
-  :root { --cell: 86px; }
-
-  main {
-    max-width: 900px;
-    flex-direction: row;
-    align-items: flex-start;
-    flex-wrap: nowrap;
-    padding: 20px;
-    gap: 20px;
-  }
-
-  #board-col { flex: 0 0 auto; }
-  #side-col  { flex: 1; min-width: 220px; max-width: 280px; display: flex; flex-direction: column; gap: 12px; }
-}
-
-@media (max-width: 639px) {
-  #side-col { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 700px) {
+  header h1 { font-size: 1.3rem; letter-spacing: 4px; }
+  .ibtn { font-size: 0.82rem; padding: 9px 13px; }
 }
 </style>
 </head>
 <body>
 
-<!-- ===== Pass Device Overlay ===== -->
-<div class="overlay" id="pass-overlay">
-  <div class="overlay-box">
-    <h2 id="pass-heading">P2 の番</h2>
-    <div class="ov-piece" id="pass-piece"></div>
-    <p class="ov-sub" id="pass-sub"></p>
-    <button class="ov-btn" onclick="dismissPass()">準備OK、置きます →</button>
-  </div>
-</div>
-
-<!-- ===== Result Overlay ===== -->
-<div class="overlay" id="result-overlay">
-  <div class="overlay-box">
-    <h2 id="res-title"></h2>
-    <p class="ov-sub" id="res-sub"></p>
-    <button class="ov-btn" onclick="resetGame()">もう一度プレイ</button>
-    <button class="ov-btn ghost" onclick="document.getElementById('result-overlay').classList.remove('show')">結果を見る</button>
-  </div>
-</div>
-
-<!-- ===== HEADER ===== -->
 <header>
-  <h1>QUARTO</h1>
-  <div class="chips">
-    <div class="chip active" id="chip1">P1</div>
-    <div class="chip"        id="chip2">P2</div>
+  <h1>ブレインマップ</h1>
+  <div class="hbtns">
+    <button class="ibtn" id="btn-add-root">＋ ノード</button>
+    <button class="ibtn" id="btn-fit">全体表示</button>
+    <button class="ibtn" id="btn-export">書き出し</button>
+    <button class="ibtn" id="btn-import">読み込み</button>
+    <button class="ibtn warn" id="btn-new">新規</button>
   </div>
 </header>
 
-<div id="status-bar">P1：相手に渡す駒を選んでください</div>
-
-<!-- ===== MAIN ===== -->
-<main>
-  <div id="board-col">
-    <div id="board"></div>
+<div id="canvas-wrap">
+  <div id="world">
+    <svg id="lines" width="1" height="1"></svg>
+    <div id="nodes-layer"></div>
   </div>
+</div>
 
-  <div id="side-col">
-    <!-- Hand piece -->
-    <div class="card">
-      <div class="card-label" id="hand-label">手持ちの駒</div>
-      <div id="hand-inner"></div>
-    </div>
+<div id="zoom-ctrl">
+  <button class="ibtn" id="btn-zoom-in">＋</button>
+  <button class="ibtn" id="btn-zoom-out">－</button>
+</div>
 
-    <!-- Reserve -->
-    <div class="card">
-      <div class="card-label">残り駒 ― タップして相手に渡す</div>
-      <div id="reserve"></div>
-    </div>
+<div id="hint">タップ：選択　　ドラッグ：移動／背景ドラッグでパン<br>ホイール／ピンチ：拡大縮小　　選択中はダブルタップで編集</div>
 
-    <!-- Confirm -->
-    <button class="btn-primary" id="confirm-btn" onclick="confirmSelection()">
-      この駒を相手に渡す ✓
-    </button>
+<div id="action-bar">
+  <button class="ibtn" id="act-edit">✏️ 編集</button>
+  <button class="ibtn" id="act-child">➕ 子ノード</button>
+  <button class="ibtn" id="act-sibling">↩ 兄弟ノード</button>
+  <button class="ibtn" id="act-color">🎨 色</button>
+  <button class="ibtn warn" id="act-delete">🗑 削除</button>
+</div>
 
-    <!-- Legend -->
-    <div class="card">
-      <div class="card-label">属性の見方</div>
-      <div class="legend">
-        <div><span>高さ</span>：高い／低い</div>
-        <div><span>色</span>：明るい／暗い</div>
-        <div><span>形</span>：円柱／角柱</div>
-        <div><span>上部</span>：空洞／詰まり</div>
-      </div>
-    </div>
+<div id="palette-pop"></div>
 
-    <!-- Reset -->
-    <button class="btn-ghost" onclick="resetGame()">最初からやり直す</button>
-  </div>
-</main>
+<input type="file" id="import-input" accept="application/json">
 
 <script>
+(function () {
+'use strict';
+
 // ========================================================
-//  GAME STATE
+//  DATA MODEL
 // ========================================================
+const STORAGE_KEY = 'brainmap:data';
+const ROOT_ID = 1;
+const PALETTE = ['#e2b96f','#6fc2e2','#e26f8a','#8ae26f','#c26fe2','#e2a06f','#6fe2b9','#e2e26f','#a06fe2','#6f8ae2'];
 
-// piece = 4 bits
-//  bit0 height : 0=低い  1=高い
-//  bit1 color  : 0=明    1=暗
-//  bit2 shape  : 0=角    1=円
-//  bit3 top    : 0=詰まり 1=空洞
+let nodes = [];          // {id, parentId, text, x, y, color, collapsed}
+let nextId = 1;
+let selectedId = null;
+let editingId = null;
+let zoom = 1;
+let pan = { x: 0, y: 0 };
 
-let board = new Array(16).fill(null);
-let reserve = new Set([...Array(16).keys()]);
-let handPiece = null;
-let selectedPiece = null;
-let currentPlayer = 1;
-let phase = 'select'; // 'select' | 'place'
-let gameOver = false;
-let winCells = [];
+const byId = () => Object.fromEntries(nodes.map(n => [n.id, n]));
 
-// All lines that can form a Quarto
-const LINES = [];
-for (let r = 0; r < 4; r++) LINES.push([r*4, r*4+1, r*4+2, r*4+3]);
-for (let c = 0; c < 4; c++) LINES.push([c, c+4, c+8, c+12]);
-LINES.push([0,5,10,15], [3,6,9,12]);
+function children(parentId) {
+  return nodes.filter(n => n.parentId === parentId);
+}
 
-function checkQuarto() {
-  for (const line of LINES) {
-    const ps = line.map(i => board[i]);
-    if (ps.some(p => p === null)) continue;
-    for (let bit = 0; bit < 4; bit++) {
-      const vs = ps.map(p => (p >> bit) & 1);
-      if (vs.every(v => v === 0) || vs.every(v => v === 1)) return line;
-    }
+function descendants(id) {
+  const out = [];
+  const stack = [id];
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const c of children(cur)) { out.push(c.id); stack.push(c.id); }
   }
-  return null;
+  return out;
+}
+
+function isVisible(node, map) {
+  let cur = node;
+  while (cur.parentId !== null) {
+    const parent = map[cur.parentId];
+    if (!parent) break;
+    if (parent.collapsed) return false;
+    cur = parent;
+  }
+  return true;
 }
 
 // ========================================================
-//  SVG PIECE RENDERER
+//  PERSISTENCE
 // ========================================================
+let saveTimer = null;
+function flushSave() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, nextId, zoom, pan }));
+  } catch (e) { /* storage unavailable, ignore */ }
+}
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, 250);
+}
+window.addEventListener('beforeunload', flushSave);
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushSave();
+});
 
-function pieceSVG(pid, size) {
-  const tall   = (pid >> 0) & 1;
-  const dark   = (pid >> 1) & 1;
-  const round  = (pid >> 2) & 1;
-  const hollow = (pid >> 3) & 1;
+function loadDefault() {
+  nodes = [{ id: ROOT_ID, parentId: null, text: '中心テーマ', x: 0, y: 0, color: null, collapsed: false }];
+  nextId = 2;
+  zoom = 1;
+  pan = { x: 0, y: 0 };
+}
 
-  const s  = size;
-  const cx = s / 2;
-  const bodyH = tall ? s * 0.57 : s * 0.34;
-  const bodyW = s * 0.50;
-  const baseW = s * 0.64;
-  const baseH = s * 0.13;
-  const floor = s * 0.88;
-  const top   = floor - bodyH;
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) { loadDefault(); return; }
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.nodes) || !data.nodes.some(n => n.id === ROOT_ID)) { loadDefault(); return; }
+    nodes = data.nodes;
+    nextId = data.nextId || (Math.max(...nodes.map(n => n.id)) + 1);
+    zoom = typeof data.zoom === 'number' ? data.zoom : 1;
+    pan = data.pan || { x: 0, y: 0 };
+  } catch (e) {
+    loadDefault();
+  }
+}
 
-  const fill  = dark ? '#4a3728' : '#d4b896';
-  const shade = dark ? '#2a1a10' : '#a07a58';
-  const hi    = dark ? '#6a4a38' : '#e8ceae';
-  const str   = dark ? '#2a1a10' : '#8a6a48';
+// ========================================================
+//  NODE OPERATIONS
+// ========================================================
+function addChildNode(parentId, text) {
+  const map = byId();
+  const parent = map[parentId];
+  if (!parent) return null;
+  const sibs = children(parentId);
+  const idx = sibs.length;
 
-  let body = '';
-  if (round) {
-    const rx = bodyW / 2;
-    const et = top + bodyH * 0.12;
-    body = `
-      <ellipse cx="${cx}" cy="${et}" rx="${rx}" ry="${bodyH*0.12}" fill="${shade}" opacity=".7"/>
-      <rect x="${cx-rx}" y="${et}" width="${bodyW}" height="${bodyH*0.88}" fill="${fill}"/>
-      <ellipse cx="${cx}" cy="${et+bodyH*0.88}" rx="${rx}" ry="${bodyH*0.12}" fill="${shade}"/>
-      <ellipse cx="${cx}" cy="${et}" rx="${rx}" ry="${bodyH*0.12}" fill="${hi}" opacity=".55"/>`;
+  let angle;
+  if (parent.parentId === null) {
+    angle = idx * 2.399963; // golden-angle spread around root
   } else {
-    const hw = bodyW / 2;
-    body = `
-      <rect x="${cx-hw}" y="${top}" width="${bodyW}" height="${bodyH}" rx="3" fill="${fill}" stroke="${str}" stroke-width="1"/>
-      <rect x="${cx-hw+2}" y="${top+2}" width="${hw*0.42}" height="${bodyH-4}" rx="2" fill="${hi}" opacity=".32"/>`;
+    const dirIn = Math.atan2(parent.y - (map[parent.parentId] ? map[parent.parentId].y : parent.y),
+                              parent.x - (map[parent.parentId] ? map[parent.parentId].x : parent.x - 1));
+    const spreadSeq = [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8];
+    angle = dirIn + spreadSeq[idx % spreadSeq.length] + Math.floor(idx / spreadSeq.length) * 0.3;
   }
+  const radius = 170 + Math.floor(idx / 8) * 70;
+  const x = parent.x + Math.cos(angle) * radius;
+  const y = parent.y + Math.sin(angle) * radius;
+  const color = parent.parentId === null ? PALETTE[idx % PALETTE.length] : parent.color;
 
-  let hole = '';
-  if (hollow) {
-    const hr = bodyW * 0.16;
-    const hy = round ? top + bodyH * 0.14 : top + bodyH * 0.13;
-    hole = `<circle cx="${cx}" cy="${hy}" r="${hr}" fill="${shade}" opacity=".92"/>`;
-  }
+  const id = nextId++;
+  nodes.push({ id, parentId, text: text || '新しいトピック', x, y, color, collapsed: false });
+  if (parent.collapsed) parent.collapsed = false;
+  return id;
+}
 
-  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" style="display:block;pointer-events:none;">
-    <ellipse cx="${cx}" cy="${floor}"          rx="${baseW/2}"      ry="${baseH/2}"      fill="${shade}"/>
-    <ellipse cx="${cx}" cy="${floor-baseH*.3}" rx="${baseW/2*.95}"  ry="${baseH/2*.6}"   fill="${fill}" stroke="${str}" stroke-width=".5"/>
-    ${body}${hole}
-  </svg>`;
+function addSiblingNode(id) {
+  const node = byId()[id];
+  if (!node) return null;
+  if (node.parentId === null) return addChildNode(id);
+  return addChildNode(node.parentId);
+}
+
+function deleteNode(id) {
+  if (id === ROOT_ID) return;
+  const node = byId()[id];
+  if (!node) return;
+  const toRemove = new Set([id, ...descendants(id)]);
+  const parentId = node.parentId;
+  nodes = nodes.filter(n => !toRemove.has(n.id));
+  if (selectedId !== null && toRemove.has(selectedId)) selectedId = parentId;
+}
+
+function resetMap() {
+  loadDefault();
+  selectedId = null;
+  editingId = null;
 }
 
 // ========================================================
 //  RENDER
 // ========================================================
+const nodesLayer = document.getElementById('nodes-layer');
+const linesSvg = document.getElementById('lines');
+const world = document.getElementById('world');
+const actionBar = document.getElementById('action-bar');
+const palettePop = document.getElementById('palette-pop');
 
-function cellPx() {
-  return Math.min(78, Math.floor((window.innerWidth - 52) / 4));
+function applyWorldTransform() {
+  world.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
 }
 
-function renderBoard() {
-  const el = document.getElementById('board');
-  const cs = cellPx();
-  el.style.gridTemplateColumns = `repeat(4,${cs}px)`;
-  el.style.gridTemplateRows    = `repeat(4,${cs}px)`;
-  el.innerHTML = '';
-
-  for (let i = 0; i < 16; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    cell.style.width = cell.style.height = cs + 'px';
-    if (winCells.includes(i)) cell.classList.add('winner');
-
-    if (board[i] !== null) {
-      cell.innerHTML = pieceSVG(board[i], cs - 10);
-    } else if (phase === 'place' && !gameOver) {
-      cell.classList.add('placeable');
-      const idx = i;
-      cell.addEventListener('click', () => placeOnBoard(idx));
-    }
-    el.appendChild(cell);
+function renderLines() {
+  const map = byId();
+  let d = '';
+  for (const n of nodes) {
+    if (n.parentId === null) continue;
+    const p = map[n.parentId];
+    if (!p) continue;
+    if (!isVisible(n, map)) continue;
+    d += `<path d="M ${p.x} ${p.y} L ${n.x} ${n.y}" stroke="${n.color || '#5a6a8a'}" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.85"/>`;
   }
+  linesSvg.innerHTML = d;
 }
 
-function renderReserve() {
-  const el = document.getElementById('reserve');
-  const cs = cellPx();
-  el.innerHTML = '';
-
-  for (let pid = 0; pid < 16; pid++) {
-    const slot = document.createElement('div');
-    slot.className = 'res-slot';
-    slot.style.width = slot.style.height = cs + 'px';
-
-    if (reserve.has(pid)) {
-      slot.innerHTML = pieceSVG(pid, cs - 10);
-      if (phase === 'select' && !gameOver) {
-        slot.classList.add('selectable');
-        if (selectedPiece === pid) slot.classList.add('selected');
-        const p = pid;
-        slot.addEventListener('click', () => selectFromReserve(p));
-      }
-    }
-    el.appendChild(slot);
-  }
+function positionNodeEl(el, node) {
+  el.style.left = node.x + 'px';
+  el.style.top = node.y + 'px';
 }
 
-function renderHand() {
-  const inner = document.getElementById('hand-inner');
-  const label = document.getElementById('hand-label');
-  if (handPiece !== null) {
-    label.textContent = `手持ちの駒（P${currentPlayer} がボードに置く）`;
-    inner.innerHTML = pieceSVG(handPiece, 70);
-  } else {
-    label.textContent = '手持ちの駒';
-    inner.innerHTML = `<span style="color:#445;font-size:.8rem;padding:16px 0;display:block">なし</span>`;
-  }
+function renderNodeText(el, node) {
+  const span = el.querySelector('.node-text');
+  if (document.activeElement !== span) span.textContent = node.text;
 }
 
-function renderChips() {
-  document.getElementById('chip1').className = 'chip' + (currentPlayer === 1 ? ' active' : '');
-  document.getElementById('chip2').className = 'chip' + (currentPlayer === 2 ? ' active' : '');
-}
+function makeNodeEl(node) {
+  const el = document.createElement('div');
+  el.className = 'node' + (node.parentId === null ? ' root' : '');
+  el.dataset.id = node.id;
+  if (node.color) el.style.setProperty('--nc', node.color);
+  positionNodeEl(el, node);
 
-function setStatus(msg) { document.getElementById('status-bar').textContent = msg; }
+  const span = document.createElement('span');
+  span.className = 'node-text';
+  span.textContent = node.text;
+  span.setAttribute('contenteditable', 'false');
+  el.appendChild(span);
 
-function showConfirm(show) {
-  document.getElementById('confirm-btn').classList.toggle('show', show);
+  el.addEventListener('pointerdown', onNodePointerDown);
+  span.addEventListener('blur', () => commitEdit(node.id));
+  span.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(node.id); span.blur(); }
+  });
+
+  return el;
 }
 
 function render() {
-  renderBoard();
-  renderReserve();
-  renderHand();
-  renderChips();
-}
+  const map = byId();
+  const existing = new Map();
+  nodesLayer.querySelectorAll('.node').forEach(el => existing.set(Number(el.dataset.id), el));
 
-// ========================================================
-//  ACTIONS
-// ========================================================
+  const seen = new Set();
+  for (const node of nodes) {
+    seen.add(node.id);
+    const visible = isVisible(node, map);
+    let el = existing.get(node.id);
+    if (!el) {
+      el = makeNodeEl(node);
+      nodesLayer.appendChild(el);
+    }
+    el.style.display = visible ? '' : 'none';
+    if (!visible) continue;
 
-function selectFromReserve(pid) {
-  if (phase !== 'select' || gameOver) return;
-  selectedPiece = pid;
-  renderReserve();
-  showConfirm(true);
-  setStatus(`P${currentPlayer}：選択済み → 確認ボタンで渡す`);
-}
+    positionNodeEl(el, node);
+    if (node.color) el.style.setProperty('--nc', node.color);
+    renderNodeText(el, node);
+    el.classList.toggle('selected', selectedId === node.id);
 
-function confirmSelection() {
-  if (selectedPiece === null) return;
-  const given = selectedPiece;
-  const next  = 3 - currentPlayer;
-
-  // Show pass-device overlay
-  document.getElementById('pass-heading').textContent = `P${next} の番`;
-  document.getElementById('pass-sub').textContent =
-    `P${currentPlayer} がこの駒を選びました。\nP${next} に端末を渡してください。`;
-  document.getElementById('pass-piece').innerHTML = pieceSVG(given, 108);
-  document.getElementById('pass-overlay').classList.add('show');
-
-  // Commit state (player can now flip the phone)
-  handPiece = given;
-  reserve.delete(given);
-  selectedPiece = null;
-  showConfirm(false);
-}
-
-function dismissPass() {
-  document.getElementById('pass-overlay').classList.remove('show');
-  currentPlayer = 3 - currentPlayer;
-  phase = 'place';
-  setStatus(`P${currentPlayer}：光っているマスに駒を置いてください`);
-  render();
-}
-
-function placeOnBoard(idx) {
-  if (phase !== 'place' || gameOver || board[idx] !== null) return;
-
-  board[idx] = handPiece;
-  handPiece  = null;
-
-  const wl = checkQuarto();
-  if (wl) {
-    winCells = wl;
-    gameOver = true;
-    render();
-    setTimeout(() => {
-      document.getElementById('res-title').textContent = '🎉 クアルト！';
-      document.getElementById('res-sub').textContent   = `P${currentPlayer} の勝利！`;
-      document.getElementById('result-overlay').classList.add('show');
-    }, 380);
-    return;
+    // toggle-btn for collapse/expand
+    let tbtn = el.querySelector('.toggle-btn');
+    const hasKids = children(node.id).length > 0;
+    if (hasKids) {
+      if (!tbtn) {
+        tbtn = document.createElement('button');
+        tbtn.className = 'toggle-btn';
+        tbtn.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        });
+        tbtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          node.collapsed = !node.collapsed;
+          save();
+          render();
+        });
+        el.appendChild(tbtn);
+      }
+      tbtn.textContent = node.collapsed ? '+' : '−';
+    } else if (tbtn) {
+      tbtn.remove();
+    }
   }
 
-  if (reserve.size === 0) {
-    gameOver = true;
-    render();
-    setTimeout(() => {
-      document.getElementById('res-title').textContent = '引き分け';
-      document.getElementById('res-sub').textContent   = '全ての駒が置かれましたが、揃いませんでした。';
-      document.getElementById('result-overlay').classList.add('show');
-    }, 380);
-    return;
+  for (const [id, el] of existing) {
+    if (!seen.has(id)) el.remove();
   }
 
-  phase = 'select';
-  setStatus(`P${currentPlayer}：相手に渡す駒を選んでください`);
+  renderLines();
+  updateActionBar();
+}
+
+function updateActionBar() {
+  document.body.classList.toggle('has-selection', selectedId !== null);
+  if (selectedId === null) {
+    actionBar.classList.remove('show');
+    return;
+  }
+  actionBar.classList.add('show');
+  const isRoot = selectedId === ROOT_ID;
+  document.getElementById('act-sibling').style.visibility = isRoot ? 'hidden' : 'visible';
+  document.getElementById('act-delete').style.visibility = isRoot ? 'hidden' : 'visible';
+}
+
+// ========================================================
+//  EDITING
+// ========================================================
+let editBackup = '';
+
+function startEdit(id) {
+  const node = byId()[id];
+  if (!node) return;
+  const el = nodesLayer.querySelector(`.node[data-id="${id}"]`);
+  if (!el) return;
+  const span = el.querySelector('.node-text');
+  editingId = id;
+  editBackup = node.text;
+  span.setAttribute('contenteditable', 'true');
+  span.focus();
+  document.execCommand('selectAll', false, null);
+}
+
+function commitEdit(id) {
+  if (editingId !== id) return;
+  const node = byId()[id];
+  const el = nodesLayer.querySelector(`.node[data-id="${id}"]`);
+  if (!node || !el) { editingId = null; return; }
+  const span = el.querySelector('.node-text');
+  const text = span.textContent.trim();
+  node.text = text || editBackup || 'ノード';
+  span.textContent = node.text;
+  span.setAttribute('contenteditable', 'false');
+  editingId = null;
+  save();
+}
+
+function cancelEdit(id) {
+  const node = byId()[id];
+  const el = nodesLayer.querySelector(`.node[data-id="${id}"]`);
+  if (!node || !el) return;
+  const span = el.querySelector('.node-text');
+  span.textContent = editBackup;
+  editingId = null;
+}
+
+// ========================================================
+//  SELECTION
+// ========================================================
+function selectNode(id) {
+  selectedId = id;
+  nodesLayer.querySelectorAll('.node').forEach(el => {
+    el.classList.toggle('selected', Number(el.dataset.id) === id);
+  });
+  updateActionBar();
+  hidePalette();
+}
+
+function deselect() {
+  selectedId = null;
+  nodesLayer.querySelectorAll('.node').forEach(el => el.classList.remove('selected'));
+  updateActionBar();
+  hidePalette();
+}
+
+// ========================================================
+//  NODE DRAG
+// ========================================================
+let dragState = null; // {id, startScreenX, startScreenY, startX, startY, moved}
+
+function onNodePointerDown(e) {
+  const el = e.currentTarget;
+  const id = Number(el.dataset.id);
+  if (editingId === id) return; // let text editing handle its own events
+  if (e.target.closest('.toggle-btn')) return;
+  e.stopPropagation();
+  if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+
+  el.setPointerCapture(e.pointerId);
+  const node = byId()[id];
+  dragState = {
+    id, pointerId: e.pointerId,
+    startScreenX: e.clientX, startScreenY: e.clientY,
+    startX: node.x, startY: node.y,
+    moved: false, el
+  };
+  el.addEventListener('pointermove', onNodePointerMove);
+  el.addEventListener('pointerup', onNodePointerUp);
+  el.addEventListener('pointercancel', onNodePointerUp);
+}
+
+function onNodePointerMove(e) {
+  if (!dragState || e.pointerId !== dragState.pointerId) return;
+  const dx = (e.clientX - dragState.startScreenX) / zoom;
+  const dy = (e.clientY - dragState.startScreenY) / zoom;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragState.moved = true;
+  if (!dragState.moved) return;
+
+  const node = byId()[dragState.id];
+  node.x = dragState.startX + dx;
+  node.y = dragState.startY + dy;
+  dragState.el.classList.add('dragging');
+  positionNodeEl(dragState.el, node);
+  renderLines();
+}
+
+function onNodePointerUp(e) {
+  if (!dragState || e.pointerId !== dragState.pointerId) return;
+  const { id, moved, el } = dragState;
+  el.removeEventListener('pointermove', onNodePointerMove);
+  el.removeEventListener('pointerup', onNodePointerUp);
+  el.removeEventListener('pointercancel', onNodePointerUp);
+  el.classList.remove('dragging');
+  try { el.releasePointerCapture(dragState.pointerId); } catch (err) {}
+  dragState = null;
+
+  if (!moved) {
+    if (selectedId === id) {
+      // second tap on already-selected node: treat as intent to edit
+      if (Date.now() - (lastTapInfo.id === id ? lastTapInfo.t : 0) < 350) {
+        startEdit(id);
+      }
+      lastTapInfo = { id, t: Date.now() };
+    } else {
+      selectNode(id);
+      lastTapInfo = { id, t: Date.now() };
+    }
+  } else {
+    save();
+  }
+}
+let lastTapInfo = { id: null, t: 0 };
+
+// double-click for desktop convenience
+nodesLayer.addEventListener('dblclick', (e) => {
+  const el = e.target.closest('.node');
+  if (!el) return;
+  const id = Number(el.dataset.id);
+  selectNode(id);
+  startEdit(id);
+});
+
+// ========================================================
+//  CANVAS PAN + ZOOM
+// ========================================================
+const canvasWrap = document.getElementById('canvas-wrap');
+const activePointers = new Map();
+let panMode = null;   // {startPanX, startPanY, startClientX, startClientY}
+let pinchMode = null; // {startDist, startZoom, startPanX, startPanY, cx, cy}
+
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+canvasWrap.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.node')) return;
+  canvasWrap.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (activePointers.size === 1) {
+    panMode = { startPanX: pan.x, startPanY: pan.y, startClientX: e.clientX, startClientY: e.clientY, moved: false };
+    pinchMode = null;
+  } else if (activePointers.size === 2) {
+    const pts = [...activePointers.values()];
+    pinchMode = {
+      startDist: dist(pts[0], pts[1]),
+      startZoom: zoom,
+      startPanX: pan.x, startPanY: pan.y,
+      cx: (pts[0].x + pts[1].x) / 2, cy: (pts[0].y + pts[1].y) / 2
+    };
+    panMode = null;
+  }
+});
+
+canvasWrap.addEventListener('pointermove', (e) => {
+  if (!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pinchMode && activePointers.size === 2) {
+    const pts = [...activePointers.values()];
+    const newDist = dist(pts[0], pts[1]);
+    const factor = newDist / (pinchMode.startDist || 1);
+    const newZoom = clampZoom(pinchMode.startZoom * factor);
+    const cx = pinchMode.cx, cy = pinchMode.cy;
+    const worldX = (cx - pinchMode.startPanX) / pinchMode.startZoom;
+    const worldY = (cy - pinchMode.startPanY) / pinchMode.startZoom;
+    zoom = newZoom;
+    pan.x = cx - worldX * zoom;
+    pan.y = cy - worldY * zoom;
+    applyWorldTransform();
+  } else if (panMode && activePointers.size === 1) {
+    const dx = e.clientX - panMode.startClientX;
+    const dy = e.clientY - panMode.startClientY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) panMode.moved = true;
+    pan.x = panMode.startPanX + dx;
+    pan.y = panMode.startPanY + dy;
+    applyWorldTransform();
+  }
+});
+
+function endPointer(e) {
+  const wasPanning = panMode && !panMode.moved && activePointers.size === 1;
+  activePointers.delete(e.pointerId);
+  if (activePointers.size === 0) {
+    if (wasPanning) deselect();
+    panMode = null;
+    pinchMode = null;
+    save();
+  } else if (activePointers.size === 1) {
+    const [pt] = [...activePointers.values()];
+    panMode = { startPanX: pan.x, startPanY: pan.y, startClientX: pt.x, startClientY: pt.y, moved: true };
+    pinchMode = null;
+  }
+}
+canvasWrap.addEventListener('pointerup', endPointer);
+canvasWrap.addEventListener('pointercancel', endPointer);
+
+function clampZoom(z) { return Math.min(2.5, Math.max(0.15, z)); }
+
+canvasWrap.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = Math.exp(-e.deltaY * 0.0012);
+  const newZoom = clampZoom(zoom * factor);
+  const rect = canvasWrap.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const worldX = (cx - pan.x) / zoom;
+  const worldY = (cy - pan.y) / zoom;
+  zoom = newZoom;
+  pan.x = cx - worldX * zoom;
+  pan.y = cy - worldY * zoom;
+  applyWorldTransform();
+  save();
+}, { passive: false });
+
+function zoomBy(factor) {
+  const rect = canvasWrap.getBoundingClientRect();
+  const cx = rect.width / 2, cy = rect.height / 2;
+  const worldX = (cx - pan.x) / zoom;
+  const worldY = (cy - pan.y) / zoom;
+  zoom = clampZoom(zoom * factor);
+  pan.x = cx - worldX * zoom;
+  pan.y = cy - worldY * zoom;
+  applyWorldTransform();
+  save();
+}
+
+function fitView() {
+  const map = byId();
+  const visibleNodes = nodes.filter(n => isVisible(n, map));
+  if (visibleNodes.length === 0) return;
+  const pad = 110;
+  const minX = Math.min(...visibleNodes.map(n => n.x)) - pad;
+  const maxX = Math.max(...visibleNodes.map(n => n.x)) + pad;
+  const minY = Math.min(...visibleNodes.map(n => n.y)) - pad;
+  const maxY = Math.max(...visibleNodes.map(n => n.y)) + pad;
+  const rect = canvasWrap.getBoundingClientRect();
+  const w = Math.max(1, maxX - minX);
+  const h = Math.max(1, maxY - minY);
+  const newZoom = clampZoom(Math.min(rect.width / w, rect.height / h, 1.5));
+  zoom = newZoom;
+  pan.x = rect.width / 2 - ((minX + maxX) / 2) * zoom;
+  pan.y = rect.height / 2 - ((minY + maxY) / 2) * zoom;
+  applyWorldTransform();
+  save();
+}
+
+// ========================================================
+//  ACTION BAR / TOOLBAR HANDLERS
+// ========================================================
+document.getElementById('btn-add-root').addEventListener('click', () => {
+  const parentId = selectedId !== null ? selectedId : ROOT_ID;
+  const id = addChildNode(parentId);
+  save();
+  render();
+  selectNode(id);
+});
+
+document.getElementById('btn-fit').addEventListener('click', fitView);
+document.getElementById('btn-zoom-in').addEventListener('click', () => zoomBy(1.25));
+document.getElementById('btn-zoom-out').addEventListener('click', () => zoomBy(0.8));
+
+document.getElementById('btn-new').addEventListener('click', () => {
+  if (!confirm('新しいマップを作成しますか？現在の内容は失われます。')) return;
+  resetMap();
+  save();
+  render();
+  fitView();
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ nodes, nextId }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'brainmap.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+const importInput = document.getElementById('import-input');
+document.getElementById('btn-import').addEventListener('click', () => importInput.click());
+importInput.addEventListener('change', () => {
+  const file = importInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || !Array.isArray(data.nodes) || !data.nodes.some(n => n.id === ROOT_ID)) {
+        throw new Error('invalid');
+      }
+      nodes = data.nodes;
+      nextId = data.nextId || (Math.max(...nodes.map(n => n.id)) + 1);
+      selectedId = null;
+      editingId = null;
+      save();
+      render();
+      fitView();
+    } catch (e) {
+      alert('読み込みに失敗しました。ファイル形式を確認してください。');
+    }
+    importInput.value = '';
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('act-edit').addEventListener('click', () => {
+  if (selectedId !== null) startEdit(selectedId);
+});
+document.getElementById('act-child').addEventListener('click', () => {
+  if (selectedId === null) return;
+  const id = addChildNode(selectedId);
+  save();
+  render();
+  selectNode(id);
+});
+document.getElementById('act-sibling').addEventListener('click', () => {
+  if (selectedId === null || selectedId === ROOT_ID) return;
+  const id = addSiblingNode(selectedId);
+  save();
+  render();
+  selectNode(id);
+});
+document.getElementById('act-delete').addEventListener('click', () => {
+  if (selectedId === null || selectedId === ROOT_ID) return;
+  deleteNode(selectedId);
+  save();
+  render();
+  if (selectedId !== null) selectNode(selectedId); else updateActionBar();
+});
+
+document.getElementById('act-color').addEventListener('click', (e) => {
+  if (selectedId === null) return;
+  openPalette(e.currentTarget);
+});
+
+function openPalette(anchor) {
+  palettePop.innerHTML = '';
+  PALETTE.forEach(c => {
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = c;
+    sw.addEventListener('click', () => applyColor(selectedId, c));
+    palettePop.appendChild(sw);
+  });
+  const rect = anchor.getBoundingClientRect();
+  palettePop.style.left = Math.min(rect.left, window.innerWidth - 190) + 'px';
+  palettePop.style.top = (rect.top - 150) + 'px';
+  palettePop.classList.add('show');
+}
+function hidePalette() { palettePop.classList.remove('show'); }
+document.addEventListener('click', (e) => {
+  if (!palettePop.contains(e.target) && e.target.id !== 'act-color') hidePalette();
+});
+
+function applyColor(id, color) {
+  const node = byId()[id];
+  if (!node) return;
+  const oldColor = node.color;
+  const targets = [id, ...descendants(id)];
+  const map = byId();
+  targets.forEach(tid => {
+    const n = map[tid];
+    if (n.parentId === id || tid === id || n.color === oldColor) n.color = color;
+  });
+  hidePalette();
+  save();
   render();
 }
 
 // ========================================================
-//  RESET
+//  KEYBOARD SHORTCUTS
 // ========================================================
+document.addEventListener('keydown', (e) => {
+  if (editingId !== null) return;
+  if (selectedId === null) return;
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const id = addChildNode(selectedId);
+    save(); render(); selectNode(id);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const id = selectedId === ROOT_ID ? addChildNode(ROOT_ID) : addSiblingNode(selectedId);
+    save(); render(); selectNode(id);
+  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selectedId === ROOT_ID) return;
+    e.preventDefault();
+    deleteNode(selectedId);
+    save(); render();
+    if (selectedId !== null) selectNode(selectedId); else updateActionBar();
+  } else if (e.key === 'F2') {
+    e.preventDefault();
+    startEdit(selectedId);
+  } else if (e.key === 'Escape') {
+    deselect();
+  }
+});
 
-function resetGame() {
-  board = new Array(16).fill(null);
-  reserve = new Set([...Array(16).keys()]);
-  handPiece = selectedPiece = null;
-  currentPlayer = 1;
-  phase = 'select';
-  gameOver = false;
-  winCells = [];
-  document.getElementById('result-overlay').classList.remove('show');
-  document.getElementById('pass-overlay').classList.remove('show');
-  showConfirm(false);
-  setStatus('P1：相手に渡す駒を選んでください');
-  render();
-}
+// ========================================================
+//  INIT
+// ========================================================
+load();
+render();
+applyWorldTransform();
+window.addEventListener('resize', () => applyWorldTransform());
+requestAnimationFrame(fitView);
 
-// Re-render on orientation change
-window.addEventListener('resize', () => { render(); }, { passive: true });
-
-resetGame();
+})();
 </script>
 </body>
 </html>
