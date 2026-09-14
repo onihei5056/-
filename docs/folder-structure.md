@@ -34,18 +34,21 @@
         ├── db/
         │   └── db.ts          … IndexedDB(Dexie)スキーマ、現在ユーザー/端末ID、監査ログ
         ├── schema/
-        │   ├── sections.ts    … 項目定義スキーマ本体(仮。要確認対象)+ 写真区分 + 擁壁不具合種類
+        │   ├── sections.ts    … 項目定義スキーマ本体(元Excelのセル番地付き)+ 写真区分 + 脚注※1〜※20
+        │   ├── wall.ts        … 擁壁調査シートの選択肢定義(工法・材質・水抜き穴・排水・変状・根拠法令)と免責文
         │   └── flow.ts        … スマホ入力フローのステップ順序定義
         ├── hooks/
         │   ├── useCase.ts           … 案件情報の取得
         │   ├── useSectionAnswers.ts … セクション回答の読込・自動保存(デバウンス)・手動保存
+        │   ├── useGlobalAnswers.ts  … 全セクションの回答＋計算結果(セクション横断の自動計算用)
         │   └── useIssues.ts         … 入力チェック結果の取得
         ├── components/
         │   ├── TopBar.tsx        … 案件名/所在地/ステップ/進捗率/保存状態/未入力必須数
         │   ├── BottomNav.tsx     … 戻る/一時保存/次への固定フッター
         │   ├── DynamicForm.tsx   … 項目定義スキーマから画面を自動描画
         │   ├── FieldInput.tsx    … 項目種別ごとの入力コントロール(テキスト/数値/日付/選択/計算等)
-        │   ├── PhotoManager.tsx  … 写真登録(撮影/選択/圧縮/コメント/並び替え/回転/削除/PDF掲載切替)
+        │   ├── PhotoManager.tsx  … 写真登録(撮影/選択/圧縮/コメント/箇所名/並び替え/回転/削除/PDF掲載切替)
+        │   ├── WallFields.tsx    … 擁壁調査シート専用の入力部品(セグメント/複数選択/テキスト/日付)
         │   ├── AuthGate.tsx      … 簡易PINロック画面
         │   ├── InstallPrompt.tsx … ホーム画面追加の案内(iOS/Android)
         │   └── UpdateToast.tsx   … 新バージョン検知時の更新通知

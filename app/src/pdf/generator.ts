@@ -1,12 +1,29 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { db } from '../db/db';
-import { SECTIONS, PHOTO_CATEGORIES } from '../schema/sections';
+import {
+  SECTIONS,
+  PHOTO_CATEGORIES,
+  PHOTO_SHEET_NOTES,
+  PHOTO_DISCLAIMER_TEMPLATE,
+  FOOTNOTES
+} from '../schema/sections';
+import { WALL_DISCLAIMER, WALL_PERMIT_LAWS } from '../schema/wall';
 import { isFieldVisible } from '../utils/condition';
-import { computeCalc } from '../utils/calc';
+import { buildGlobals, computeCalc } from '../utils/calc';
 import { blobToDataUrl } from '../utils/image';
 import type { AnswerValue, FieldDef, PhotoRecord, SurveyCase, WallSurveyRecord } from '../types';
-import { buildFieldsTableBlock, buildPhotoBlock, buildTitleBlock, CONTENT_WIDTH_PX, PDF_FONT, type Row } from './blocks';
+import {
+  buildFieldsTableBlock,
+  buildNoteBlock,
+  buildPhotoPairBlock,
+  buildSubTitleBlock,
+  buildTitleBlock,
+  CONTENT_WIDTH_PX,
+  PDF_FONT,
+  type PhotoCell,
+  type Row
+} from './blocks';
 
 const A4_W_MM = 210;
 const A4_H_MM = 297;
@@ -21,28 +38,79 @@ function fmtDateTime(ts: number): string {
   return new Date(ts).toLocaleString('ja-JP');
 }
 
-function fieldValueText(field: FieldDef, values: Record<string, AnswerValue>): string {
-  if (!isFieldVisible(field.condition, values)) return '-';
-  const v = values[field.id];
+const CHECKED = '☑';
+const UNCHECKED = '☐';
+
+/**
+ * 元Excelは「□選択肢」を並べた帳票のため、PDFでも全選択肢を☑/☐で出力する。
+ * 条件分岐で非表示になった項目も行自体は残し、未選択(☐)・空欄(-)として出力することで
+ * 元Excelの書式・行構成を崩さない。
+ */
+function fieldValueText(field: FieldDef, values: Record<string, AnswerValue>, globals: Record<string, AnswerValue>): string {
+  const visible = isFieldVisible(field.condition, values);
+  const v = visible ? values[field.id] : undefined;
+
   if (field.type === 'calc' && field.calc) {
-    return String(computeCalc(field.calc, values));
+    return visible ? String(computeCalc(field.calc, values, globals)) : '-';
   }
+
+  if (field.options && (field.type === 'radio' || field.type === 'checkbox-multi' || field.type === 'select')) {
+    const selected = Array.isArray(v) ? v : v === null || v === undefined || v === '' ? [] : [String(v)];
+    return field.options
+      .map((o) => `${selected.includes(o.value) ? CHECKED : UNCHECKED}${o.label}`)
+      .join('　');
+  }
+
   if (v === null || v === undefined || v === '') return '-';
-  if (Array.isArray(v)) {
-    if (v.length === 0) return '-';
-    const labels = v.map((val) => field.options?.find((o) => o.value === val)?.label ?? val);
-    return labels.join('、');
-  }
-  if (field.type === 'radio' || field.type === 'select') {
-    return field.options?.find((o) => o.value === v)?.label ?? String(v);
-  }
   return String(v);
+}
+
+function sectionRows(
+  fields: FieldDef[],
+  values: Record<string, AnswerValue>,
+  globals: Record<string, AnswerValue>
+): Row[] {
+  return fields.map((field) => ({
+    label: field.label,
+    value: fieldValueText(field, values, globals),
+    unit:
+      field.type === 'number' || field.type === 'calc'
+        ? fieldValueText(field, values, globals) === '-'
+          ? undefined
+          : field.unit
+        : undefined
+  }));
+}
+
+function checkboxList(options: string[], selected: string[]): string {
+  return options.map((o) => `${selected.includes(o) ? CHECKED : UNCHECKED}${o}`).join('　');
+}
+
+async function photoCell(title: string, p: PhotoRecord | undefined): Promise<PhotoCell> {
+  if (!p) return { title };
+  return {
+    title: p.label ? `${title}（${p.label}）` : title,
+    dataUrl: await blobToDataUrl(p.blob),
+    takenAt: fmtDateTime(p.takenAt),
+    photographer: p.photographer,
+    comment: p.comment
+  };
+}
+
+/** 写真リストを2枚ずつのブロック(=Excelの2列グリッド)に変換 */
+async function photoPairBlocks(entries: { title: string; photo: PhotoRecord }[]): Promise<HTMLElement[]> {
+  const blocks: HTMLElement[] = [];
+  for (let i = 0; i < entries.length; i += 2) {
+    const left = await photoCell(entries[i].title, entries[i].photo);
+    const right = entries[i + 1] ? await photoCell(entries[i + 1].title, entries[i + 1].photo) : undefined;
+    blocks.push(buildPhotoPairBlock(left, right));
+  }
+  return blocks;
 }
 
 /**
  * 案件データを収集し、印刷用ブロック(DOM要素)の配列を構築する。
- * 写真ブロックは1枚=1ブロックとして扱い、ページ分割時に写真が途中で
- * 切れないようにする。
+ * 帳票構成は元Excelの3シート(不動産調査シート / 設備現況写真 / 擁壁調査シート)に対応。
  */
 async function buildBlocks(caseId: string): Promise<{ blocks: HTMLElement[]; surveyCase: SurveyCase }> {
   const surveyCase = await db.cases.get(caseId);
@@ -50,13 +118,14 @@ async function buildBlocks(caseId: string): Promise<{ blocks: HTMLElement[]; sur
 
   const allAnswers = await db.sectionAnswers.where('caseId').equals(caseId).toArray();
   const answersBySection = new Map(allAnswers.map((a) => [a.sectionId, a.values]));
+  const globals = buildGlobals(allAnswers);
   const photos = await db.photos.where('caseId').equals(caseId).toArray();
   const walls = await db.wallSurveys.where('caseId').equals(caseId).sortBy('index');
 
   const blocks: HTMLElement[] = [];
 
-  // 表紙
-  blocks.push(buildTitleBlock('不動産現地調査報告書'));
+  // ===== 帳票1: 不動産調査シート =====
+  blocks.push(buildTitleBlock('不動産調査シート', '出典様式: 不動産調査シート_2026.3.1.xlsx'));
   blocks.push(
     buildFieldsTableBlock('案件情報', [
       { label: '案件名', value: surveyCase.name },
@@ -67,92 +136,203 @@ async function buildBlocks(caseId: string): Promise<{ blocks: HTMLElement[]; sur
     ])
   );
 
-  // 各セクション
   for (const section of SECTIONS) {
     const values = answersBySection.get(section.id) ?? {};
-    blocks.push(buildTitleBlock(section.title, `対応シート(仮): ${section.sheetRef}`));
+    blocks.push(buildTitleBlock(section.title, `元Excel: ${section.sheetRef}`));
     for (const group of section.groups) {
-      const rows: Row[] = group.fields.map((field) => ({
-        label: field.label,
-        value: fieldValueText(field, values),
-        unit: field.type === 'calc' || field.type === 'number' ? field.unit : undefined
-      }));
-      blocks.push(buildFieldsTableBlock(group.title, rows));
+      blocks.push(buildFieldsTableBlock(group.title, sectionRows(group.fields, values, globals)));
     }
   }
 
-  // 設備現況写真
-  blocks.push(buildTitleBlock('設備現況写真'));
+  // 脚注(元Excel 旧版シート A88)
+  blocks.push(buildSubTitleBlock('脚注(※1〜※20)'));
+  blocks.push(
+    buildNoteBlock(
+      Object.entries(FOOTNOTES)
+        .map(([n, text]) => `※${n}.${text}`)
+        .join('　'),
+      { small: true, border: true }
+    )
+  );
+
+  // ===== 帳票2: 設備現況写真 =====
+  blocks.push(buildTitleBlock('設備現況写真', '元Excel: 設備現況写真シート'));
+  blocks.push(buildNoteBlock(PHOTO_SHEET_NOTES.join('\n'), { border: true }));
+
+  const equipmentEntries: { title: string; photo: PhotoRecord }[] = [];
   for (const cat of PHOTO_CATEGORIES) {
     const list = photos
       .filter((p) => p.category === cat.key && !p.refId && p.includeInPdf)
       .sort((a, b) => a.order - b.order);
-    if (list.length === 0) continue;
-    blocks.push(buildTitleBlock(`　${cat.label}`));
-    for (let i = 0; i < list.length; i++) {
-      const p = list[i];
-      const dataUrl = await blobToDataUrl(p.blob);
-      blocks.push(
-        buildPhotoBlock(cat.label, i + 1, list.length, dataUrl, {
-          takenAt: fmtDateTime(p.takenAt),
-          photographer: p.photographer,
-          comment: p.comment
-        })
-      );
-    }
+    list.forEach((photo) => equipmentEntries.push({ title: `【${cat.label}】`, photo }));
+  }
+  if (equipmentEntries.length === 0) {
+    blocks.push(buildNoteBlock('設備現況写真は登録されていません。', { border: true }));
+  } else {
+    blocks.push(...(await photoPairBlocks(equipmentEntries)));
   }
 
-  // 擁壁調査
-  if (walls.length > 0) {
-    blocks.push(buildTitleBlock('擁壁調査'));
-    for (const wall of walls) {
-      blocks.push(buildFieldsTableBlock(`擁壁調査 ${wall.index}`, wallRows(wall)));
-      const wallPhotos = photos
-        .filter((p) => p.category === 'yoheki' && p.refId === wall.id && p.includeInPdf)
-        .sort((a, b) => a.order - b.order);
-      for (let i = 0; i < wallPhotos.length; i++) {
-        const p = wallPhotos[i];
-        const dataUrl = await blobToDataUrl(p.blob);
-        blocks.push(
-          buildPhotoBlock(`擁壁調査${wall.index}`, i + 1, wallPhotos.length, dataUrl, {
-            takenAt: fmtDateTime(p.takenAt),
-            photographer: p.photographer,
-            comment: p.comment
-          })
-        );
-      }
+  const equipmentPhotos = equipmentEntries.map((e) => e.photo);
+  const shootDates = equipmentPhotos.map((p) => p.takenAt).sort((a, b) => a - b);
+  const photographers = Array.from(new Set(equipmentPhotos.map((p) => p.photographer))).filter(Boolean);
+  blocks.push(
+    buildFieldsTableBlock('撮影情報', [
+      { label: '撮影日', value: shootDates.length ? new Date(shootDates[0]).toLocaleDateString('ja-JP') : '-' },
+      { label: '撮影者', value: photographers.length ? photographers.join('、') : '-' }
+    ])
+  );
+  blocks.push(
+    buildNoteBlock(
+      PHOTO_DISCLAIMER_TEMPLATE.replace(
+        '{years}',
+        surveyCase.buildingAgeYears ? String(surveyCase.buildingAgeYears) : '　　'
+      ),
+      { border: true }
+    )
+  );
+
+  // ===== 帳票3: 擁壁調査シート =====
+  for (const wall of walls) {
+    blocks.push(
+      buildTitleBlock(`擁壁調査シート ${wall.index}`, `元Excel: 擁壁調査シート / （${wall.direction || '　'}）側の擁壁について`)
+    );
+    blocks.push(
+      buildFieldsTableBlock('擁壁の基本情報', [
+        { label: '対象擁壁(方位)', value: wall.direction ? `（${wall.direction}）側` : '-' },
+        {
+          label: '擁壁の設置場所',
+          value: `${checkboxList(['本物件内', '隣接地内'], wall.location ? [wall.location] : [])}${
+            wall.locationDetail ? `（${wall.locationDetail}）` : ''
+          }`
+        },
+        {
+          label: '擁壁の所有者',
+          value: `${checkboxList(['売主', '隣接地'], wall.owner ? [wall.owner] : [])}${
+            wall.ownerDetail ? `（${wall.ownerDetail}）` : ''
+          }`
+        },
+        {
+          label: '本物件の敷地の位置',
+          value: `${checkboxList(
+            ['本物件の敷地が擁壁の上', '本物件の敷地が擁壁の下', 'その他'],
+            wall.position === '上'
+              ? ['本物件の敷地が擁壁の上']
+              : wall.position === '下'
+                ? ['本物件の敷地が擁壁の下']
+                : wall.position === 'その他'
+                  ? ['その他']
+                  : []
+          )}${wall.positionOther ? `（${wall.positionOther}）` : ''}`
+        },
+        {
+          label: '擁壁の許認可',
+          value: checkboxList(['必要', '不要', '不明'], wall.permitRequired ? [wall.permitRequired] : [])
+        }
+      ])
+    );
+
+    if (wall.permitRequired === '必要') {
+      const permitRows: Row[] = [];
+      wall.permits.forEach((p) => {
+        const lawName = p.law === 'その他' && p.lawOther ? p.lawOther : p.law;
+        permitRows.push({
+          label: `${p.checked ? CHECKED : UNCHECKED}${lawName}`,
+          value:
+            `許可: ${checkboxList(['無', '有'], p.permit ? [p.permit] : [])}` +
+            `　日付: ${p.permitDate || '-'}　番号: ${p.permitNumber || '-'}\n` +
+            `検査済証: ${checkboxList(['無', '有'], p.inspection ? [p.inspection] : [])}` +
+            `　日付: ${p.inspectionDate || '-'}　番号: ${p.inspectionNumber || '-'}`
+        });
+      });
+      permitRows.push({
+        label: 'その他の状況',
+        value: checkboxList(
+          ['許認可の取得は不明', '許認可を取得していない'],
+          [
+            ...(wall.permitUnknown ? ['許認可の取得は不明'] : []),
+            ...(wall.permitNotObtained ? ['許認可を取得していない'] : [])
+          ]
+        )
+      });
+      blocks.push(buildFieldsTableBlock('擁壁の許認可(根拠法令別)', permitRows));
     }
+
+    blocks.push(
+      buildFieldsTableBlock('「がけ」について', [
+        {
+          label: '地方公共団体が定める「がけ」に',
+          value: checkboxList(['該当しない', '該当する'], wall.cliffApplicable ? [wall.cliffApplicable] : [])
+        },
+        { label: '制限の概要', value: wall.cliffRestrictionSummary || '-' }
+      ])
+    );
+
+    blocks.push(
+      buildFieldsTableBlock('擁壁の不適格・不具合箇所', [
+        {
+          label: '【擁壁の工法】',
+          value: `${checkboxList(
+            ['空石積み擁壁', '増積み擁壁', '二段擁壁', '二重擁壁', '張出し床版付擁壁', 'その他'],
+            wall.methods
+          )}${wall.methodOther ? `（${wall.methodOther}）` : ''}`
+        },
+        {
+          label: '【擁壁の材質】',
+          value: `${checkboxList(['空洞コンクリートブロック擁壁', '大谷石', '玉石', 'その他'], wall.materials)}${
+            wall.materialOther ? `（${wall.materialOther}）` : ''
+          }`
+        },
+        {
+          label: '【水抜き穴の状況】',
+          value: checkboxList(
+            ['水抜き穴が無い', '3㎡に1ヶ所以上無い', '口径が狭い(75mm未満)', '詰まり', '異常な色の流水'],
+            wall.weepHoles
+          )
+        },
+        {
+          label: '【排水設備等の状況】',
+          value: `${checkboxList(
+            ['水のしみ出し', 'クラック・目地からの湧水', '排水施設不良(排水溝のずれ・欠損)', 'その他'],
+            wall.drainage
+          )}${wall.drainageOther ? `（${wall.drainageOther}）` : ''}`
+        },
+        {
+          label: '【擁壁変状・経年変化】',
+          value: `${checkboxList(
+            [
+              'クラック(ひび割れ)',
+              '水平移動',
+              '不同沈下(目地の開き)',
+              'ふくらみ',
+              '出隅部(コーナー部)の開き',
+              '傾斜(傾き)・折損',
+              'その他'
+            ],
+            wall.deformations
+          )}${wall.deformationOther ? `（${wall.deformationOther}）` : ''}`
+        },
+        { label: '【その他】', value: wall.otherNote || '-' },
+        { label: '備考', value: wall.remarks || '-' }
+      ])
+    );
+
+    const wallEntries: { title: string; photo: PhotoRecord }[] = [];
+    const push = (category: string, baseTitle: string) => {
+      photos
+        .filter((p) => p.category === category && p.refId === wall.id && p.includeInPdf)
+        .sort((a, b) => a.order - b.order)
+        .forEach((photo, i) => wallEntries.push({ title: `${baseTitle}${i + 1}`, photo }));
+    };
+    push('yoheki-site', '敷地図・撮影方向');
+    push('yoheki-view', '全景');
+    push('yoheki-defect', '不具合箇所');
+    if (wallEntries.length > 0) {
+      blocks.push(...(await photoPairBlocks(wallEntries)));
+    }
+    blocks.push(buildNoteBlock(WALL_DISCLAIMER, { small: true, border: true }));
   }
 
   return { blocks, surveyCase };
-}
-
-function wallRows(wall: WallSurveyRecord): Row[] {
-  const defectText =
-    wall.defects.length === 0
-      ? '-'
-      : wall.defects.map((d, i) => `(${i + 1}) ${d.types.join('・') || '種類未選択'}: ${d.location || '-'} ${d.note ? '/' + d.note : ''}`).join('\n');
-  return [
-    { label: '対象擁壁の方位・場所', value: wall.orientation || '-' },
-    { label: '撮影方向', value: wall.shootingDirection || '-' },
-    { label: '擁壁の設置場所', value: wall.location || '-' },
-    { label: '擁壁の所有者', value: wall.owner || '-' },
-    { label: '本物件の位置', value: wall.positionRelation || '-' },
-    { label: '許認可の種類', value: wall.permitType || '-' },
-    { label: '許可の有無', value: wall.hasPermit || '-' },
-    { label: '許可日', value: wall.permitDate || '-' },
-    { label: '許可番号', value: wall.permitNumber || '-' },
-    { label: '検査済証の有無', value: wall.hasInspectionCert || '-' },
-    { label: '検査日', value: wall.inspectionDate || '-' },
-    { label: '検査番号', value: wall.inspectionNumber || '-' },
-    { label: 'がけ条例', value: wall.cliffOrdinance || '-' },
-    { label: '工法', value: wall.method || '-' },
-    { label: '材質', value: wall.material || '-' },
-    { label: '水抜き穴の状況', value: wall.weepHoleStatus || '-' },
-    { label: '排水設備の状況', value: wall.drainageStatus || '-' },
-    { label: '不具合箇所', value: defectText },
-    { label: '備考', value: wall.remarks || '-' }
-  ];
 }
 
 function buildPageShell(): { page: HTMLDivElement; content: HTMLDivElement } {
@@ -190,7 +370,7 @@ function addHeaderFooter(page: HTMLDivElement, caseInfo: SurveyCase, pageNum: nu
     fontWeight: '700',
     fontFamily: PDF_FONT
   });
-  header.innerHTML = `<span>${escapeHtml(caseInfo.name)} / ${escapeHtml(caseInfo.address)}</span><span>不動産現地調査報告書</span>`;
+  header.innerHTML = `<span>${escapeHtml(caseInfo.name)} / ${escapeHtml(caseInfo.address)}</span><span>不動産調査シート</span>`;
   page.insertBefore(header, page.firstChild);
 
   const footer = document.createElement('div');
@@ -215,7 +395,7 @@ function escapeHtml(s: string): string {
 
 /**
  * ブロック配列をA4ページに収まるように詰め込む(ビンパッキング)。
- * 1ブロック(=1写真や1グループ表)は分割せず、必ず同一ページ内に収める。
+ * 1ブロック(=写真1行や項目表1つ)は分割せず、必ず同一ページ内に収める。
  */
 function paginate(blocks: HTMLElement[], measured: number[]): HTMLElement[][] {
   const pages: HTMLElement[][] = [];
@@ -289,5 +469,8 @@ export function pdfFileName(surveyCase: SurveyCase): string {
   const d = new Date();
   const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
   const safeName = surveyCase.name.replace(/[\\/:*?"<>|]/g, '_');
-  return `不動産調査_${safeName}_${stamp}.pdf`;
+  return `不動産調査シート_${safeName}_${stamp}.pdf`;
 }
+
+/** 帳票に載る根拠法令一覧(ドキュメント用に再エクスポート) */
+export { WALL_PERMIT_LAWS };

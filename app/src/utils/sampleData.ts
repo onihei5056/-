@@ -1,6 +1,7 @@
 import { db, getDeviceId, getCurrentUser, addAuditLog, sectionAnswerKey } from '../db/db';
 import { uid } from './id';
-import type { PhotoCategoryKey, PhotoRecord, SurveyCase, WallSurveyRecord } from '../types';
+import { emptyWallSurvey } from '../schema/wall';
+import type { AnswerValue, PhotoCategoryKey, PhotoRecord, SurveyCase } from '../types';
 
 function placeholderPhoto(label: string, color: string): Promise<Blob> {
   const canvas = document.createElement('canvas');
@@ -18,13 +19,22 @@ function placeholderPhoto(label: string, color: string): Promise<Blob> {
   return new Promise((resolve) => canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.85));
 }
 
-async function addSamplePhoto(caseId: string, category: PhotoCategoryKey, label: string, color: string, order: number, refId?: string) {
+async function addSamplePhoto(
+  caseId: string,
+  category: PhotoCategoryKey,
+  label: string,
+  color: string,
+  order: number,
+  refId?: string,
+  photoLabel?: string
+) {
   const blob = await placeholderPhoto(label, color);
   const record: PhotoRecord = {
     id: uid(),
     caseId,
     category,
     refId,
+    label: photoLabel,
     blob,
     mimeType: 'image/jpeg',
     takenAt: Date.now(),
@@ -39,16 +49,21 @@ async function addSamplePhoto(caseId: string, category: PhotoCategoryKey, label:
   await db.photos.add(record);
 }
 
-/** 案件一覧から1タップで生成できるサンプル案件(入力・写真・擁壁調査込み) */
+/**
+ * 案件一覧から1タップで生成できるサンプル案件。
+ * 値はすべて元Excel「不動産調査シート_2026.3.1.xlsx」の選択肢に準拠している。
+ */
 export async function createSampleCase(): Promise<string> {
   const caseId = uid();
   const now = Date.now();
+  const today = new Date().toISOString().slice(0, 10);
   const sample: SurveyCase = {
     id: caseId,
     name: 'サンプル案件(東京都渋谷区)',
     address: '東京都渋谷区サンプル1-2-3',
-    surveyDate: new Date().toISOString().slice(0, 10),
+    surveyDate: today,
     surveyor: 'サンプル担当者',
+    buildingAgeYears: 39,
     status: 'in_progress',
     createdAt: now,
     createdBy: getCurrentUser(),
@@ -59,105 +74,163 @@ export async function createSampleCase(): Promise<string> {
   };
   await db.cases.add(sample);
 
-  const sections: Record<string, Record<string, unknown>> = {
-    'property-basic': {
-      propertyType: 'house',
-      caseName: sample.name,
-      address: sample.address,
-      surveyDate: sample.surveyDate,
-      surveyor: sample.surveyor,
-      weather: 'sunny',
-      chiban: '1番2',
-      kaokuBango: '1番2の1',
-      jukyoHyoji: '渋谷区サンプル1丁目2番3号',
-      kenchikuDate: '1998-04-01',
-      kozo: ['wood'],
-      floorsAbove: 2,
-      floorsBelow: 0,
-      landArea: 120,
-      landAreaJissoku: 121.5,
-      areaB1: 0,
-      area1F: 55,
-      area2F: 48,
-      buildingArea: 60,
-      kotei_land: 18000000,
-      kotei_building: 4200000,
-      boundaryStatus: 'clear'
-    },
-    'seller-rights': {
+  const sections: Record<string, Record<string, AnswerValue>> = {
+    'seller-info': {
       sellerName: '調査 太郎',
-      sellerContact: '090-0000-0000',
-      mendanDate: sample.surveyDate,
-      meigiSameAsSeller: 'yes',
-      meigiStatus: 'alive',
-      saleReason: ['souzoku'],
-      isVacant: 'yes',
-      vacantSince: '2025-01-10',
-      vacantMonths: 8,
-      previousUse: 'jitaku',
-      managementStatus: 'normal',
-      hasLeftover: 'yes',
-      leftoverHandling: 'seller_dispose',
-      leftoverDetail: '家財一式(タンス・食器棚)',
-      hasOccupant: 'no',
-      defectHistory: 'no',
-      needsEstimate: 'no'
+      judgmentCapacity: '有',
+      ownershipForm: '単独',
+      propertyType: '既存住宅',
+      interviewee: '売主本人',
+      surveyDate: today,
+      staffName: 'サンプル担当者',
+      ownerStatus: '同居',
+      saleReason: '住み替えのため(サンプル)',
+      vacantYears: 2,
+      vacantSince: '2024-04-01',
+      previousUse: '自己居住',
+      managementStatus: '定期来訪',
+      visitIntervalMonths: 1,
+      visitCount: 2,
+      moveDestination: '購入',
+      moveDestinationStatus: '済',
+      moveSupport: '不要',
+      leaseback: '不要',
+      moveOutTiming: '日付指定',
+      moveOutDate: '2026-12-20',
+      leftover: '有',
+      leftoverHandling: '売主にて処分',
+      boundaryClarity: '明示',
+      boundaryMethod: ['確定測量'],
+      contractNonconformity: ['免責'],
+      otherBurden: ['更地渡し'],
+      estimateRequest: ['残置物', '測量'],
+      landArea: 120.5,
+      parcelCount: 2,
+      areaB1: 0,
+      area1F: 55.2,
+      area2F: 48.6,
+      area3F: 0
+    },
+    'property-rights': {
+      chiban: '渋谷区サンプル1丁目2番3',
+      kaokuBango: '2番3',
+      jukyoHyoji: '渋谷区サンプル1丁目2番3号',
+      buildEra: '平成',
+      buildDate: '1998-04-01',
+      landValuation: 18000000,
+      buildingValuation: 4200000,
+      propertyTax: 152000,
+      propertyTaxYear: 2026,
+      thirdPartyOccupancy: '無',
+      hasTitleDeed: '有',
+      hasPurchaseContract: '有',
+      hasFloorPlan: '無'
     },
     registry: {
-      touchiChosaDate: sample.surveyDate,
-      chosekiChosaki: '東京法務局渋谷出張所',
-      landRegisteredArea: 120,
-      landCategory: 'takuchi',
-      buildingRegisteredArea: 103,
-      hasMortgage: 'no',
-      hasEasement: 'no',
-      chiseki_kokai: 'yes'
+      registryDocs: ['土地謄本', '公図', '地積測量図', '建物謄本', '建物図面'],
+      registeredLandCategory: '宅地',
+      actualLandCategory: '宅地',
+      sellerNameAddressChange: '無',
+      kouzuDifference: '無',
+      addressDifference: '無',
+      buildingPlanDifference: '無',
+      unregisteredExtension: '無',
+      garageRegistration: '不要',
+      warehouseRegistration: '不要',
+      demolitionRegistration: '未',
+      hasMortgage: '有',
+      remainingDebt: 850,
+      shortfallOwnFunds: 0,
+      hasSuperficies: '無',
+      hasLeasehold: '無',
+      hasSeizure: '無',
+      hasBankruptcy: '無',
+      hasRepurchaseClause: '無',
+      hasProvisionalRegistration: '無'
     },
     'city-office': {
-      yakushoChosaDate: sample.surveyDate,
-      yakushoName: '渋谷区役所',
-      chosaTanto: '建築課',
-      doc_toshikeikaku: 'yes',
-      doc_dorodaicho: 'yes',
-      doc_gesuidaicho: 'yes',
-      doc_hazard: 'yes'
-    },
-    'road-zoning': {
-      planRoad: 'no',
-      youtoChiiki: 'dai1shu_jukyo',
-      chiikichiku: ['junbouka'],
-      kenpeiritsuKitei: 60,
-      yosekiritsuKitei: 200,
-      roadType: 'shido42-1-1',
-      roadWidth: 5.4,
-      setback: 'no',
-      hasGutter: 'yes',
-      hasWaterway: 'no',
-      landReadjustment: 'no',
-      otherLaws: ['none']
+      officeDocs: ['固定資産公課(評価)証明書', '都市計画図', '道路台帳図', 'ハザードマップ(洪水・津波・高潮・土砂・ため池)', '地番図'],
+      planRoad: '無',
+      urbanDevelopmentProject: '無',
+      zoning: '一住',
+      districts: ['準防火'],
+      designatedCoverage: 60,
+      cornerLotRelaxation: '無',
+      currentCoverage: 60,
+      designatedFar: 200,
+      farCoefficient: '0.4',
+      buildingArea: 60.2,
+      coverageExceeded: '無',
+      farExceeded: '無',
+      roadPublicPrivate: '公道',
+      road1Side: '南',
+      road1Width: 5.4,
+      frontage1: 12.3,
+      frontage1Note: '南側',
+      setbackArea: 0,
+      road1Direction: '南',
+      road1Class: '1号',
+      waterwayWidth: 0,
+      waterwayOccupancyPermit: '無',
+      waterwayCharge: '無',
+      wallLineRestriction: '無',
+      minSiteArea: 0,
+      exteriorWallSetback: 0,
+      absoluteHeight: '制限なし',
+      roadSlopeLimit: '有',
+      neighborSlopeLimit: '無',
+      northSlopeLimit: '有',
+      shadowRegulation: '1',
+      buildingAgreement: '無',
+      localOrdinance: '無',
+      landReadjustment: '無',
+      otherLaws: []
     },
     utilities: {
-      waterSupply: 'jousui',
-      waterMeterDiameter: '20',
-      electricCompany: '東京電力',
-      electricCapacity: 40,
-      gasType: 'city',
-      hasSolar: 'no',
-      drainageType: 'gesuido'
+      utilityDocs: ['上水道台帳', '下水道台帳'],
+      waterSupply: '公営',
+      privatePipe: '無',
+      inletDiameter: 20,
+      meterRight: 20,
+      onSiteMeter: '有',
+      meterUserOwner: '適',
+      utilityPole: '無',
+      powerCapacity: 40,
+      internet: '有',
+      electricEasement: '無',
+      allElectric: '無',
+      antenna: '有',
+      antennaBs: '有',
+      cableTv: '無',
+      solar: '無',
+      gasType: '都市ガス',
+      drainageType: '下水道',
+      beneficiaryCharge: '済',
+      sewerUsageConfirm: '有'
     },
     surroundings: {
-      nearbyFacilities: ['school', 'store', 'station'],
-      noiseVibration: 'no',
-      hasConcreteBlock: 'no',
-      hasWall: 'yes',
-      cliffOrdinanceGeneral: 'no',
-      groundReinforcement: 'no',
-      chonaikaiJoin: 'yes',
-      chonaikaiFee: 300,
-      gomiStationLocation: '敷地北側路上',
-      rinkaVisited: 'yes',
-      rinkaResult: '特にトラブルなし。境界の越境なし。'
-    }
+      cbHeight: 0.8,
+      cbThickness: 0.12,
+      cbBraceRequired: '不要',
+      cbBraceExists: '無',
+      cbRebar: '有',
+      cbFoundation: '有',
+      hasWall: '有',
+      heightDifference: '有',
+      groundBelowHeight: 0,
+      groundAboveHeight: 1.8,
+      wallKinds: ['石積擁壁'],
+      cliffOrdinance: '無',
+      groundReinforcement: '無',
+      chonaikaiFee: 3600,
+      chonaikaiHead: 'サンプル 花子',
+      gomiLocationConfirmed: '済',
+      neighbor1Side: '東',
+      neighbor1Name: 'サンプル 一郎',
+      neighbor1Visited: '済',
+      neighbor1Note: '越境・トラブルなし'
+    },
+    mansion: {}
   };
 
   for (const [sectionId, values] of Object.entries(sections)) {
@@ -165,50 +238,55 @@ export async function createSampleCase(): Promise<string> {
       key: sectionAnswerKey(caseId, sectionId),
       caseId,
       sectionId,
-      values: values as never,
+      values,
       manualOverride: {},
       updatedAt: now,
       updatedBy: getCurrentUser()
     });
   }
 
+  // 設備現況写真(元Excel帳票の6枠)
   await addSamplePhoto(caseId, 'suido', '上水道', '#0b2c5c', 0);
-  await addSamplePhoto(caseId, 'meter', 'メーター', '#0b2c5c', 0);
-  await addSamplePhoto(caseId, 'denki', '電気', '#0b2c5c', 0);
-  await addSamplePhoto(caseId, 'gesui', '下水', '#0b2c5c', 0);
+  await addSamplePhoto(caseId, 'meter', 'メーター', '#14477f', 0);
+  await addSamplePhoto(caseId, 'osui', '汚水', '#3c3c3c', 0);
+  await addSamplePhoto(caseId, 'usui', '雨水', '#2d5f6e', 0);
+  await addSamplePhoto(caseId, 'gas', 'ガス', '#7a4b12', 0);
+  await addSamplePhoto(caseId, 'denki', '電気', '#5c3d0b', 0);
+  await addSamplePhoto(caseId, 'gesui', '下水', '#333f4d', 0);
 
-  const wallId = uid();
-  const wall: WallSurveyRecord = {
-    id: wallId,
-    caseId,
-    index: 1,
-    orientation: '北側',
-    shootingDirection: '南向き撮影',
-    location: '敷地北側境界沿い',
-    owner: '売主',
-    positionRelation: '上側',
-    permitType: '宅地造成等規制法',
-    hasPermit: '有',
-    permitDate: '1997-06-01',
-    permitNumber: '第123号',
-    hasInspectionCert: '有',
-    inspectionDate: '1997-09-01',
-    inspectionNumber: '検第45号',
-    cliffOrdinance: '非該当',
-    method: '間知石積み',
-    material: '石積み',
-    weepHoleStatus: '3㎡に1箇所設置・機能良好',
-    drainageStatus: '良好',
-    defects: [
-      { id: uid(), types: ['クラック'], location: '中央部下方', note: '幅0.5mm程度の軽微なひび割れ' }
-    ],
-    remarks: 'サンプルデータのため詳細は要確認。',
-    updatedAt: now,
-    updatedBy: getCurrentUser()
-  };
+  // 擁壁調査シート
+  const wall = emptyWallSurvey(caseId, 1, uid(), getCurrentUser());
+  wall.direction = '西';
+  wall.location = '本物件内';
+  wall.owner = '売主';
+  wall.position = '上';
+  wall.permitRequired = '必要';
+  wall.permits = wall.permits.map((p) =>
+    p.law === '宅地造成等規制法にもとづく'
+      ? {
+          ...p,
+          checked: true,
+          permit: '有' as const,
+          permitDate: '1997-06-01',
+          permitNumber: '第123号',
+          inspection: '有' as const,
+          inspectionDate: '1997-09-01',
+          inspectionNumber: '検第45号'
+        }
+      : p
+  );
+  wall.cliffApplicable = '該当しない';
+  wall.methods = ['空石積み擁壁'];
+  wall.materials = ['玉石'];
+  wall.weepHoles = ['3㎡に1ヶ所以上無い'];
+  wall.deformations = ['クラック(ひび割れ)'];
+  wall.otherNote = '石積擁壁の上にコンクリートブロック擁壁が設置されております。';
+  wall.remarks = 'サンプルデータです。実際の重要事項説明文は現地・行政調査の結果に基づき記載してください。';
   await db.wallSurveys.add(wall);
-  await addSamplePhoto(caseId, 'yoheki', '擁壁全景', '#5c3d0b', 0, wallId);
-  await addSamplePhoto(caseId, 'yoheki', 'クラック箇所', '#7a1f1f', 1, wallId);
+
+  await addSamplePhoto(caseId, 'yoheki-site', '敷地図・撮影方向', '#4b4b4b', 0, wall.id);
+  await addSamplePhoto(caseId, 'yoheki-view', '擁壁全景', '#5c3d0b', 0, wall.id);
+  await addSamplePhoto(caseId, 'yoheki-defect', 'クラック', '#7a1f1f', 0, wall.id, 'クラック');
 
   await addAuditLog(caseId, 'sample_create', 'サンプル案件を作成');
   return caseId;

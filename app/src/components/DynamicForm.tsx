@@ -5,13 +5,14 @@ import { FieldInput } from './FieldInput';
 interface Props {
   groups: SubGroup[];
   values: Record<string, AnswerValue>;
+  globals?: Record<string, AnswerValue>;
   manualOverride: Record<string, boolean>;
   issues?: ValidationIssue[];
   onChange: (fieldId: string, value: AnswerValue) => void;
   onToggleManual: (fieldId: string, manual: boolean) => void;
 }
 
-export function DynamicForm({ groups, values, manualOverride, issues, onChange, onToggleManual }: Props) {
+export function DynamicForm({ groups, values, globals, manualOverride, issues, onChange, onToggleManual }: Props) {
   const errorByField = new Map((issues ?? []).filter((i) => i.fieldId).map((i) => [i.fieldId, i.message]));
 
   return (
@@ -27,6 +28,7 @@ export function DynamicForm({ groups, values, manualOverride, issues, onChange, 
                 field={field}
                 value={values[field.id]}
                 values={values}
+                globals={globals}
                 manualOverride={!!manualOverride[field.id]}
                 error={errorByField.get(field.id)}
                 onChange={(v) => onChange(field.id, v)}

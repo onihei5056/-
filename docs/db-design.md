@@ -25,6 +25,7 @@ erDiagram
     string address
     string surveyDate
     string surveyor
+    number buildingAgeYears "設備現況写真の免責文に差し込む築年数"
     string status
     number createdAt
     string createdBy
@@ -45,8 +46,9 @@ erDiagram
   PHOTOS {
     string id PK
     string caseId FK
-    string category
+    string category "設備6区分+下水/浄化槽/その他+擁壁3区分"
     string refId "擁壁ID等の紐付け先(任意)"
+    string label "不具合箇所名(擁壁④⑤用)"
     blob blob "表示・PDF用(圧縮後)"
     blob originalBlob "原本(設定時のみ)"
     number takenAt
@@ -62,23 +64,29 @@ erDiagram
     string id PK
     string caseId FK
     number index
-    string orientation
-    string location
-    string owner
-    string positionRelation
-    string permitType
-    string hasPermit
-    string permitDate
-    string permitNumber
-    string hasInspectionCert
-    string inspectionDate
-    string inspectionNumber
-    string cliffOrdinance
-    string method
-    string material
-    string weepHoleStatus
-    string drainageStatus
-    array defects "不具合箇所配列"
+    string direction "（　）側の擁壁について"
+    string location "本物件内/隣接地内"
+    string locationDetail
+    string owner "売主/隣接地"
+    string ownerDetail
+    string position "擁壁の上/下/その他"
+    string positionOther
+    string permitRequired "必要/不要/不明"
+    array permits "根拠法令4種の許可・検査済証"
+    boolean permitUnknown
+    boolean permitNotObtained
+    string cliffApplicable "該当しない/該当する"
+    string cliffRestrictionSummary
+    array methods "擁壁の工法"
+    string methodOther
+    array materials "擁壁の材質"
+    string materialOther
+    array weepHoles "水抜き穴の状況"
+    array drainage "排水設備等の状況"
+    string drainageOther
+    array deformations "擁壁変状・経年変化"
+    string deformationOther
+    string otherNote
     string remarks
     number updatedAt
     string updatedBy

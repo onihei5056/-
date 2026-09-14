@@ -18,14 +18,19 @@ export interface FieldOption {
 /** 条件分岐: 指定フィールドの値が特定値のとき表示する */
 export interface FieldCondition {
   fieldId: string; // 参照するフィールドID(同一セクション内)
-  equals?: string | string[]; // このいずれかに一致で表示
+  equals?: string | string[]; // このいずれかに一致で表示(複数選択項目は含むかどうかで判定)
   notEquals?: string | string[];
 }
 
 export interface CalcSpec {
   /** 参照するフィールドID群を合計/割合計算する */
   kind: 'sum' | 'ratio';
-  sourceFieldIds: string[]; // sum: 合計対象 / ratio: [分子, 分母]
+  /**
+   * sum: 合計対象 / ratio: [分子, 分母]
+   * 「sectionId.fieldId」形式で他セクションの項目も参照できる
+   * (例: 建ぺい率 = 建築面積 ÷ seller-info.landArea)
+   */
+  sourceFieldIds: string[];
   ratioMultiplier?: number; // ratio用 (例: 100で%表示)
 }
 
@@ -37,16 +42,15 @@ export interface FieldDef {
   unit?: string; // 単位表示 (m, ㎡, 円 など)
   options?: FieldOption[]; // radio/select/checkbox-multi
   placeholder?: string;
-  note?: string; // Excelの注意書き
+  note?: string; // Excelの注意書き・脚注
   condition?: FieldCondition; // 条件分岐
-  needsPhoto?: boolean; // 写真必須項目
-  photoCategory?: string; // 紐づく写真区分キー
+  needsPhoto?: boolean; // 写真を伴うことが望ましい項目
   calc?: CalcSpec;
   min?: number;
   max?: number;
   maxLength?: number;
-  excelRef?: string; // 元Excel対応セル/シート参照(要確認込み)
-  needsConfirmation?: boolean; // 元Excel未提供のため一般様式で仮定義した項目
+  excelRef?: string; // 元Excelのシート名・セル番地
+  needsConfirmation?: boolean; // 元Excelの記載だけでは確定できずアプリ側で解釈した項目
 }
 
 export interface SubGroup {
@@ -57,11 +61,11 @@ export interface SubGroup {
 
 export interface SectionDef {
   id: string; // 大分類のスラッグ = 画面ID
-  sheetRef: string; // 対応する元Excelシート名(仮)
+  sheetRef: string; // 対応する元Excelシート・行
   title: string; // 画面タイトル(大分類)
   stepIndex: number; // スマホ画面構成上のステップ番号
   groups: SubGroup[];
-  wallSurveyTrigger?: boolean; // このセクションで「擁壁=有」等になると擁壁調査を追加対象にする
+  wallSurveyTrigger?: boolean; // このセクションで「擁壁=有」になると擁壁調査を追加対象にする
 }
 
 export type AnswerValue = string | string[] | number | null;
@@ -75,23 +79,32 @@ export interface SectionAnswers {
   updatedBy: string;
 }
 
+/**
+ * 写真区分。
+ * 設備現況写真シートの6枠(suido/meter/osui/usui/gas/denki)＋
+ * 注意事項に登場する下水・浄化槽・その他、
+ * 擁壁調査シートの3種(敷地図・撮影方向 / 全景①②③ / 不具合箇所④⑤)。
+ */
 export type PhotoCategoryKey =
-  | 'suido' // 上水道
-  | 'meter' // メーターボックス
-  | 'osui' // 汚水
-  | 'usui' // 雨水
-  | 'gesui' // 下水
-  | 'jokaso' // 浄化槽
-  | 'gas' // ガス
-  | 'denki' // 電気
-  | 'other' // その他設備
-  | 'yoheki'; // 擁壁(不具合箇所等)
+  | 'suido'
+  | 'meter'
+  | 'osui'
+  | 'usui'
+  | 'gas'
+  | 'denki'
+  | 'gesui'
+  | 'jokaso'
+  | 'other'
+  | 'yoheki-site'
+  | 'yoheki-view'
+  | 'yoheki-defect';
 
 export interface PhotoRecord {
   id: string;
   caseId: string;
   category: PhotoCategoryKey;
   refId?: string; // 擁壁調査ID等、カテゴリ内の紐づけ先
+  label?: string; // 擁壁「④不具合箇所(　　)」の箇所名など
   blob: Blob; // 表示・PDF用(圧縮後)
   originalBlob?: Blob; // 原本保持設定時のみ
   mimeType: string;
@@ -107,36 +120,47 @@ export interface PhotoRecord {
   updatedAt: number;
 }
 
-export interface WallDefect {
-  id: string;
-  types: string[]; // クラック/水平移動/不同沈下/ふくらみ/傾斜 等(複数選択)
-  location: string; // 不具合箇所の説明
-  note: string;
+/** 擁壁の許認可(根拠法令ごとの許可・検査済証) */
+export interface WallPermitEntry {
+  law: string; // 根拠法令
+  lawOther: string; // 法令名の自由入力(Excelの空欄チェック用)
+  checked: boolean; // この法令に該当するか
+  permit: '有' | '無' | '';
+  permitDate: string;
+  permitNumber: string;
+  inspection: '有' | '無' | '';
+  inspectionDate: string;
+  inspectionNumber: string;
 }
 
 export interface WallSurveyRecord {
   id: string;
   caseId: string;
-  index: number; // 表示順(第1擁壁, 第2擁壁...)
-  orientation: string; // 対象擁壁の方位/場所
-  shootingDirection: string; // 撮影方向
-  location: string; // 擁壁の設置場所
-  owner: string; // 擁壁の所有者
-  positionRelation: '上側' | '下側' | ''; // 本物件が上側/下側
-  permitType: string; // 許認可の種類
-  hasPermit: '有' | '無' | '';
-  permitDate: string;
-  permitNumber: string;
-  hasInspectionCert: '有' | '無' | '';
-  inspectionDate: string;
-  inspectionNumber: string;
-  cliffOrdinance: '該当' | '非該当' | '';
-  method: string; // 工法
-  material: string; // 材質
-  weepHoleStatus: string; // 水抜き穴の状況
-  drainageStatus: string; // 排水設備の状況
-  defects: WallDefect[];
-  remarks: string;
+  index: number; // 表示順(擁壁1, 擁壁2...)
+  direction: string; // （　）側の擁壁について
+  location: '本物件内' | '隣接地内' | ''; // 擁壁の設置場所
+  locationDetail: string;
+  owner: '売主' | '隣接地' | ''; // 擁壁の所有者
+  ownerDetail: string;
+  position: '上' | '下' | 'その他' | ''; // 本物件の敷地が擁壁の上/下
+  positionOther: string;
+  permitRequired: '必要' | '不要' | '不明' | ''; // 擁壁の許認可
+  permits: WallPermitEntry[];
+  permitUnknown: boolean; // 許認可の取得は不明
+  permitNotObtained: boolean; // 許認可を取得していない
+  cliffApplicable: '該当しない' | '該当する' | ''; // 「がけ」について
+  cliffRestrictionSummary: string; // 制限の概要
+  methods: string[]; // 擁壁の工法
+  methodOther: string;
+  materials: string[]; // 擁壁の材質
+  materialOther: string;
+  weepHoles: string[]; // 水抜き穴の状況
+  drainage: string[]; // 排水設備等の状況
+  drainageOther: string;
+  deformations: string[]; // 擁壁変状・経年変化
+  deformationOther: string;
+  otherNote: string; // 【その他】自由記述
+  remarks: string; // 備考
   updatedAt: number;
   updatedBy: string;
 }
@@ -149,6 +173,7 @@ export interface SurveyCase {
   address: string; // 物件所在地
   surveyDate: string; // 調査日
   surveyor: string; // 担当者
+  buildingAgeYears?: number; // 設備現況写真シート免責文に差し込む築年数
   status: CaseStatus;
   createdAt: number;
   createdBy: string;

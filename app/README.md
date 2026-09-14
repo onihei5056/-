@@ -4,8 +4,12 @@
 PDFを出力できる業務用PWA(Progressive Web App)です。iPhone・Androidのホーム画面に追加でき、
 オフラインでも入力・写真登録ができます。
 
-> **重要**: 本アプリの項目定義は、元となる「不動産調査シート_2026.3.1.xlsx」がセッションに提供されなかったため、
-> 一般的な様式で仮実装しています。詳細は `../docs/open-issues.md`(要確認事項一覧)を必ずご確認ください。
+> **項目定義の出典**: 実ファイル「不動産調査シート_2026.3.1.xlsx」(全4シート)を解析し、全244項目・
+> 選択肢・注意書き・脚注※1〜※20を元Excelのセル番地付きで実装しています(`../docs/item-definitions.md`)。
+> ただしExcelの記載だけでは確定できずアプリ側で解釈した箇所があります。運用前に
+> `../docs/open-issues.md`(要確認事項一覧)を必ずご確認ください。特に、現行シート
+> 「不動産調査シート2026.3.1」には売主・面談情報/法務局調査が含まれず、非表示の旧版シートから
+> 採用している点は要確認です。
 
 ---
 
@@ -22,8 +26,10 @@ PDFを出力できる業務用PWA(Progressive Web App)です。iPhone・Android�
 | 変更したいこと | 編集するファイル |
 |---|---|
 | 入力項目の追加・変更・選択肢の変更 | `src/schema/sections.ts` |
-| 擁壁調査の項目 | `src/pages/WallSurveyPage.tsx` |
-| 写真区分・撮影注意事項 | `src/schema/sections.ts` の `PHOTO_CATEGORIES` |
+| 擁壁調査の選択肢(工法・材質・変状など) | `src/schema/wall.ts` |
+| 擁壁調査の画面構成 | `src/pages/WallSurveyPage.tsx` |
+| 写真区分・撮影注意事項・免責文 | `src/schema/sections.ts` の `PHOTO_CATEGORIES` / `PHOTO_SHEET_NOTES` / `PHOTO_DISCLAIMER_TEMPLATE` |
+| 脚注(※1〜※20) | `src/schema/sections.ts` の `FOOTNOTES` |
 | PDF帳票のレイアウト・見出し | `src/pdf/generator.ts`、`src/pdf/blocks.ts` |
 | 画面の色・文字サイズ等の見た目 | `src/styles.css` |
 | アプリ名・アイコン・PWA設定 | `vite.config.ts`(`VitePWA` の `manifest`)、`public/icons/` |

@@ -10,13 +10,16 @@ interface Props {
   refId?: string;
   title: string;
   note?: string;
+  /** 擁壁「④不具合箇所(　　)」のように写真ごとの名称を入力させる場合 */
+  enableLabel?: boolean;
+  labelPlaceholder?: string;
 }
 
 function keepOriginalSetting(): boolean {
   return localStorage.getItem('survey-keep-original-photo') === '1';
 }
 
-export function PhotoManager({ caseId, category, refId, title, note }: Props) {
+export function PhotoManager({ caseId, category, refId, title, note, enableLabel, labelPlaceholder }: Props) {
   const [photos, setPhotos] = useState<PhotoRecord[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [openPhotoId, setOpenPhotoId] = useState<string | null>(null);
@@ -178,6 +181,7 @@ export function PhotoManager({ caseId, category, refId, title, note }: Props) {
             {urls[p.id] && <img src={urls[p.id]} alt={`${title} ${idx + 1}`} />}
             <span className="photo-thumb__badge">
               {idx + 1}/{photos.length}
+              {p.label ? ` ${p.label}` : ''}
             </span>
             {!p.includeInPdf && <div className="photo-thumb__pdf-off">PDF非掲載</div>}
           </div>
@@ -190,6 +194,18 @@ export function PhotoManager({ caseId, category, refId, title, note }: Props) {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             {urls[openPhoto.id] && (
               <img src={urls[openPhoto.id]} alt="拡大表示" style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />
+            )}
+            {enableLabel && (
+              <div className="field">
+                <label className="field-label">箇所名</label>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder={labelPlaceholder}
+                  value={openPhoto.label ?? ''}
+                  onChange={(e) => updatePhoto(openPhoto.id, { label: e.target.value })}
+                />
+              </div>
             )}
             <div className="field">
               <label className="field-label">コメント</label>

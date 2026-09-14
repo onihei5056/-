@@ -6,13 +6,15 @@ interface Props {
   field: FieldDef;
   value: AnswerValue | undefined;
   values: Record<string, AnswerValue>;
+  /** 他セクションの回答(「sectionId.fieldId」キー)。セクション横断の自動計算で使う */
+  globals?: Record<string, AnswerValue>;
   manualOverride: boolean;
   onChange: (value: AnswerValue) => void;
   onToggleManual: (manual: boolean) => void;
   error?: string;
 }
 
-export function FieldInput({ field, value, values, manualOverride, onChange, onToggleManual, error }: Props) {
+export function FieldInput({ field, value, values, globals, manualOverride, onChange, onToggleManual, error }: Props) {
   const label = (
     <label className="field-label">
       {field.label}
@@ -128,7 +130,7 @@ export function FieldInput({ field, value, values, manualOverride, onChange, onT
       break;
     }
     case 'calc': {
-      const computed = field.calc ? computeCalc(field.calc, values) : 0;
+      const computed = field.calc ? computeCalc(field.calc, values, globals) : 0;
       if (manualOverride) {
         body = (
           <div>

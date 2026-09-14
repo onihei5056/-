@@ -3,6 +3,7 @@ import { getSectionById } from '../schema/sections';
 import { useSectionAnswers } from '../hooks/useSectionAnswers';
 import { useCase } from '../hooks/useCase';
 import { useIssues } from '../hooks/useIssues';
+import { useGlobalAnswers } from '../hooks/useGlobalAnswers';
 import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import { DynamicForm } from '../components/DynamicForm';
@@ -17,6 +18,7 @@ export function SectionPage() {
   const { surveyCase } = useCase(caseId);
   const { values, manualOverride, saveState, setValue, setManual, saveNow } = useSectionAnswers(caseId, sectionId);
   const { issues, refresh } = useIssues(caseId);
+  const { globals, refresh: refreshGlobals } = useGlobalAnswers(caseId);
 
   if (!section) {
     return <div className="page-body">セクションが見つかりません。</div>;
@@ -59,6 +61,7 @@ export function SectionPage() {
         <DynamicForm
           groups={section.groups}
           values={values}
+          globals={globals}
           manualOverride={manualOverride}
           issues={sectionIssues}
           onChange={setValue}
@@ -70,6 +73,7 @@ export function SectionPage() {
         onSave={async () => {
           await saveNow();
           await refresh();
+          await refreshGlobals();
         }}
         onNext={goNext}
         saving={saveState === 'saving'}

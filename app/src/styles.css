@@ -174,7 +174,10 @@ body {
   padding: 10px 12px;
   font-size: 0.85rem;
   margin-bottom: 12px;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
+.field-note { white-space: pre-wrap; }
 .confirm-box {
   background: #fdecea;
   border: 1px solid #f3b3ac;

@@ -115,7 +115,7 @@ export function CaseListPage() {
             try {
               const id = await createSampleCase();
               await load();
-              navigate(`/case/${id}/property-basic`);
+              navigate(`/case/${id}/seller-info`);
             } finally {
               setBusy(false);
             }
@@ -128,7 +128,7 @@ export function CaseListPage() {
 
         {filtered.map((c) => (
           <div className="case-item" key={c.id}>
-            <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/case/${c.id}/property-basic`)}>
+            <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/case/${c.id}/seller-info`)}>
               <div className="case-item__name">{c.name || '(案件名未設定)'}</div>
               <div className="case-item__address">{c.address || '(所在地未設定)'}</div>
               <div className="case-item__meta">

@@ -30,16 +30,16 @@ export function CaseNewPage() {
       version: 1
     });
     await db.sectionAnswers.put({
-      key: sectionAnswerKey(id, 'property-basic'),
+      key: sectionAnswerKey(id, 'seller-info'),
       caseId: id,
-      sectionId: 'property-basic',
-      values: { caseName: name.trim(), address: address.trim(), surveyDate, surveyor },
+      sectionId: 'seller-info',
+      values: { surveyDate, staffName: surveyor.trim() },
       manualOverride: {},
       updatedAt: now,
       updatedBy: getCurrentUser()
     });
     await addAuditLog(id, 'create', '案件を新規作成');
-    navigate(`/case/${id}/property-basic`);
+    navigate(`/case/${id}/seller-info`);
   };
 
   return (
