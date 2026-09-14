@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { hasPin, setPin, clearPin, lock } from '../utils/auth';
+import { getStorageEstimate, isStoragePersisted, requestPersistentStorage } from '../utils/storage';
 
 function keepOriginalGet(): boolean {
   return localStorage.getItem('survey-keep-original-photo') === '1';
@@ -11,6 +12,13 @@ export function SettingsPage() {
   const [pinInput, setPinInput] = useState('');
   const [keepOriginal, setKeepOriginal] = useState(keepOriginalGet());
   const [pinEnabled, setPinEnabled] = useState(hasPin());
+  const [persisted, setPersisted] = useState<boolean | null>(null);
+  const [estimate, setEstimate] = useState<{ usedMB: number; quotaMB: number } | null>(null);
+
+  useEffect(() => {
+    isStoragePersisted().then(setPersisted);
+    getStorageEstimate().then(setEstimate);
+  }, []);
 
   return (
     <div className="app-shell">
@@ -33,6 +41,39 @@ export function SettingsPage() {
             />
             圧縮前の元写真も端末内に保持する(端末の空き容量を多く使用します)
           </label>
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">データの保存状態</h3>
+          {persisted === null ? (
+            <div className="field-note">確認中…</div>
+          ) : persisted ? (
+            <div style={{ color: 'var(--color-success)', fontWeight: 700 }}>
+              ✓ 保護されています(端末の空き容量が不足しない限り自動削除されません)
+            </div>
+          ) : (
+            <>
+              <div style={{ color: 'var(--color-warning)', fontWeight: 700 }}>
+                ⚠ 未保護です
+              </div>
+              <p className="field-note">
+                しばらく使用しないとOSが保存データを削除する場合があります。ホーム画面に追加してから
+                下のボタンを押すと保護を要求できます。調査完了後は必ずPDFを出力・保存してください。
+              </p>
+              <button
+                className="btn btn-secondary btn-block"
+                style={{ marginTop: 8 }}
+                onClick={async () => setPersisted(await requestPersistentStorage())}
+              >
+                データ保護を要求する
+              </button>
+            </>
+          )}
+          {estimate && (
+            <div className="field-note" style={{ marginTop: 8 }}>
+              使用量: 約{estimate.usedMB}MB / 利用可能: 約{estimate.quotaMB}MB
+            </div>
+          )}
         </div>
 
         <div className="card">
