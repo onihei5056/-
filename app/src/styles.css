@@ -56,7 +56,12 @@ body {
   z-index: 20;
   background: var(--color-main);
   color: #fff;
-  padding: 10px 16px 14px;
+  /* iPhoneのステータスバー(時刻・ノッチ)にヘッダーが潜り込まないよう上部を空ける */
+  padding: calc(10px + env(safe-area-inset-top)) 16px 14px;
+}
+/* ヘッダーを持たない画面(端末ロック画面など)でも同様に上部を空ける */
+.app-shell > .page-body:first-child {
+  padding-top: calc(16px + env(safe-area-inset-top));
 }
 .topbar__title-row {
   display: flex;
@@ -348,7 +353,9 @@ body {
 .top-actions { display: flex; gap: 8px; }
 .icon-btn {
   background: rgba(255,255,255,0.15); border: none; color: #fff; border-radius: 8px;
-  padding: 6px 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  padding: 9px 14px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  min-height: 40px; /* 指で押しやすい大きさを確保 */
+  touch-action: manipulation;
 }
 
 .list-issue {
@@ -361,4 +368,11 @@ body {
 
 @media (max-width: 400px) {
   :root { font-size: 16px; }
+}
+
+/* ホーム画面から起動した場合(スタンドアロン表示)は画面全体を白地にして、
+   下端のホームバー周辺に灰色の帯が出ないようにする */
+@media (display-mode: standalone) {
+  body { background: var(--color-bg); }
+  .app-shell { box-shadow: none; }
 }
