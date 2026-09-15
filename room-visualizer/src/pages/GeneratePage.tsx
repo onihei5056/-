@@ -28,9 +28,10 @@ import { generateImage, MOCK_LATENCY_MS } from '../api/generateImage';
 import { STYLE_PRESETS } from '../mock/styles';
 import { sampleSourceImage, SAMPLE_PROPERTY_A } from '../mock/sampleProjects';
 import { useAppStore } from '../store/AppStore';
+import { useIsPhone } from '../hooks/useMediaQuery';
 import { downloadImage } from '../utils/image';
 import { safeFileName } from '../utils/format';
-import { IconImage, IconLock, IconSparkle } from '../icons';
+import { IconImage, IconLock, IconSliders, IconSparkle } from '../icons';
 
 const EMPTY_PROPERTY: PropertyInfo = {
   name: '',
@@ -76,6 +77,11 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
   });
   const [modal, setModal] = useState<{ src: string; title: string; imageId?: string } | null>(null);
   const [compareMode, setCompareMode] = useState<'slider' | 'sbs'>('slider');
+  // スマートフォンでは3カラムを並べられないため、「設定」「結果」の2タブに分ける
+  const isPhone = useIsPhone();
+  const [mobileTab, setMobileTab] = useState<'settings' | 'results'>(
+    initialRecord ? 'results' : 'settings',
+  );
   const compareRef = useRef<HTMLDivElement>(null);
   const styleSectionRef = useRef<HTMLDivElement>(null);
 
@@ -134,6 +140,7 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
       setRecordId(record.id);
       setSelectedId(images[0]?.id ?? null);
       addRecord(record);
+      setMobileTab('results');
       notify(`${images.length}件の候補を生成し、履歴に保存しました`);
     } catch (e) {
       console.error(e);
@@ -166,6 +173,7 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
           return next;
         });
         setSelectedId(image.id);
+        setMobileTab('results');
         notify(replaceImageId ? `「${styleName}」を再生成しました` : `「${styleName}」を追加生成しました`);
       } finally {
         setLoading({ on: false, current: '', progress: 1 });
@@ -217,7 +225,13 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
     notify('サンプル写真を読み込みました');
   }, [notify]);
 
-  const scrollToCompare = () => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const scrollToCompare = () => {
+    setMobileTab('results');
+    // タブ切り替え後にスクロールするため、描画を1フレーム待つ
+    window.requestAnimationFrame(() =>
+      compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    );
+  };
 
   const addOtherStyle = () => {
     const used = new Set(results.map((r) => r.styleId));
@@ -234,10 +248,35 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
   const selectedIsFavorite = !!(recordId && selected && isFavorite(recordId, selected.id));
 
   return (
-    <div className="page">
+    <div className={`page${isPhone && mobileTab === 'settings' ? ' has-mobile-bar' : ''}`}>
+      {/* スマートフォン用：設定／結果の切り替え */}
+      {isPhone && (
+        <div className="mobile-tabs">
+          <button
+            type="button"
+            className={mobileTab === 'settings' ? 'on' : ''}
+            onClick={() => setMobileTab('settings')}
+          >
+            <IconSliders size={15} />
+            条件を設定
+          </button>
+          <button
+            type="button"
+            className={mobileTab === 'results' ? 'on' : ''}
+            onClick={() => setMobileTab('results')}
+          >
+            <IconImage size={15} />
+            生成結果
+            {results.length > 0 && <span className="mt-count">{results.length}</span>}
+          </button>
+        </div>
+      )}
+
       <div className="workspace">
         {/* ============ 左：設定パネル ============ */}
-        <div className="col col-left col-side">
+        <div
+          className={`col col-left col-side${isPhone && mobileTab !== 'settings' ? ' phone-hide' : ''}`}
+        >
           <UploadPanel
             source={source}
             onChange={(s) => {
@@ -273,24 +312,26 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
           />
           <FreeTextInput value={condition.freeText} onChange={(v) => setCond('freeText', v)} />
 
-          <div className="card card-pad generate-box">
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              onClick={() => void runGenerate()}
-              disabled={loading.on || !source || condition.styles.length === 0}
-            >
-              <IconSparkle size={17} />
-              {loading.on ? '生成中…' : 'AIで生成する'}
-            </button>
-            <p className="generate-note">
-              選択中：{condition.styles.length}スタイル／変更{condition.changeItems.length}項目
-            </p>
-          </div>
+          {!isPhone && (
+            <div className="card card-pad generate-box">
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => void runGenerate()}
+                disabled={loading.on || !source || condition.styles.length === 0}
+              >
+                <IconSparkle size={17} />
+                {loading.on ? '生成中…' : 'AIで生成する'}
+              </button>
+              <p className="generate-note">
+                選択中：{condition.styles.length}スタイル／変更{condition.changeItems.length}項目
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ============ 中央：生成結果 ============ */}
-        <div className="col col-center">
+        <div className={`col col-center${isPhone && mobileTab !== 'results' ? ' phone-hide' : ''}`}>
           <div className="page-head">
             <h1>生成結果</h1>
             <p>同じお部屋から、複数のインテリアイメージを比較できます。</p>
@@ -331,7 +372,11 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
                     <IconImage size={34} />
                   </div>
                   <h3>まだ生成結果がありません</h3>
-                  <p>左のパネルで写真と条件を選び、「AIで生成する」を押してください。</p>
+                  <p>
+                  {isPhone
+                    ? '「条件を設定」タブで写真と条件を選び、「AIで生成する」を押してください。'
+                    : '左のパネルで写真と条件を選び、「AIで生成する」を押してください。'}
+                </p>
                 </div>
               )}
               <p className="hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -344,7 +389,11 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
 
           <div className="page-head" style={{ marginTop: 6 }}>
             <h2 style={{ margin: 0, fontSize: 15 }}>生成候補一覧</h2>
-            <p>画像をクリックすると右側に詳細が表示されます。選択中の画像をもう一度クリックすると拡大します。</p>
+            <p>
+              {isPhone
+                ? '画像をタップすると全画面で表示します。スタイルの詳細は下に表示されます。'
+                : '画像をクリックすると右側に詳細が表示されます。選択中の画像をもう一度クリックすると拡大します。'}
+            </p>
           </div>
 
           {loading.on && results.length === 0 ? (
@@ -364,6 +413,7 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
               onRegenerate={(img) => void runSingle(img.styleId, img.id)}
               isFavorite={(id) => !!(recordId && isFavorite(recordId, id))}
               onToggleFavorite={handleFavorite}
+              expandOnFirstTap={isPhone}
             />
           ) : (
             <div className="empty-state">
@@ -372,7 +422,8 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
               </div>
               <h3>生成結果はここに並びます</h3>
               <p>
-                サンプル写真でもすぐに試せます。左パネルの「サンプル写真で試す」からお試しください。
+                サンプル写真でもすぐに試せます。
+                {isPhone ? '「条件を設定」タブの' : '左パネルの'}「サンプル写真で試す」からお試しください。
               </p>
             </div>
           )}
@@ -381,7 +432,9 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
         </div>
 
         {/* ============ 右：詳細 ============ */}
-        <div className="col col-right col-side">
+        <div
+          className={`col col-right col-side${isPhone && mobileTab !== 'results' ? ' phone-hide' : ''}`}
+        >
           <ResultDetail
             image={selected}
             property={property}
@@ -396,6 +449,26 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
           />
         </div>
       </div>
+
+      {/* スマートフォン用：常に押せる位置に生成ボタンを固定表示 */}
+      {isPhone && mobileTab === 'settings' && (
+        <div className="mobile-generate-bar">
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => void runGenerate()}
+            disabled={loading.on || !source || condition.styles.length === 0}
+          >
+            <IconSparkle size={17} />
+            {loading.on ? '生成中…' : 'AIで生成する'}
+          </button>
+          <p className="generate-note">
+            {source
+              ? `選択中：${condition.styles.length}スタイル／変更${condition.changeItems.length}項目`
+              : 'まず室内写真を撮影・選択してください'}
+          </p>
+        </div>
+      )}
 
       {modal && (
         <ImageModal

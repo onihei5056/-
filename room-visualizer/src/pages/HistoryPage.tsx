@@ -3,7 +3,8 @@ import { useAppStore } from '../store/AppStore';
 import { ROOM_TYPES } from '../mock/options';
 import { STYLE_PRESETS } from '../mock/styles';
 import { formatDateTime, toDateKey } from '../utils/format';
-import { IconHeart, IconSearch, IconSparkle, IconTrash } from '../icons';
+import { IconHeart, IconSearch, IconSliders, IconSparkle, IconTrash } from '../icons';
+import { useIsPhone } from '../hooks/useMediaQuery';
 import { ImageModal } from '../components/ImageModal';
 import { Disclaimer } from '../components/Disclaimer';
 import type { GenerationRecord } from '../types';
@@ -21,6 +22,11 @@ export function HistoryPage({ onOpenRecord, notify }: Props) {
   const [style, setStyle] = useState('');
   const [roomType, setRoomType] = useState('');
   const [modal, setModal] = useState<{ src: string; title: string } | null>(null);
+  // スマートフォンでは絞り込み条件を折りたたみ、検索欄だけを常時表示する
+  const isPhone = useIsPhone();
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilters = [date, style, roomType].filter(Boolean).length;
+  const filtersVisible = !isPhone || showFilters;
 
   const filtered = useMemo(
     () =>
@@ -55,23 +61,39 @@ export function HistoryPage({ onOpenRecord, notify }: Props) {
               placeholder="物件名・所在地・担当者で検索"
             />
           </div>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="生成日" />
-          <select value={style} onChange={(e) => setStyle(e.target.value)} aria-label="スタイル">
-            <option value="">すべてのスタイル</option>
-            {STYLE_PRESETS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <select value={roomType} onChange={(e) => setRoomType(e.target.value)} aria-label="部屋タイプ">
-            <option value="">すべての部屋タイプ</option>
-            {ROOM_TYPES.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          {isPhone && (
+            <button
+              type="button"
+              className="btn btn-sm filter-toggle"
+              onClick={() => setShowFilters((v) => !v)}
+              aria-expanded={showFilters}
+            >
+              <IconSliders size={14} />
+              絞り込み
+              {activeFilters > 0 && <span className="nav-badge">{activeFilters}</span>}
+            </button>
+          )}
+          {filtersVisible && (
+            <>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="生成日" />
+              <select value={style} onChange={(e) => setStyle(e.target.value)} aria-label="スタイル">
+                <option value="">すべてのスタイル</option>
+                {STYLE_PRESETS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <select value={roomType} onChange={(e) => setRoomType(e.target.value)} aria-label="部屋タイプ">
+                <option value="">すべての部屋タイプ</option>
+                {ROOM_TYPES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           {(q || date || style || roomType) && (
             <button
               type="button"

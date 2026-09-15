@@ -11,6 +11,12 @@ interface Props {
   onRegenerate: (image: GeneratedImage) => void;
   isFavorite: (imageId: string) => boolean;
   onToggleFavorite: (imageId: string) => void;
+  /**
+   * 画像の最初のタップで拡大表示するか。
+   * スマートフォンでは詳細が画像の下に常に表示されるため、
+   * 「お客様に見せる＝全画面表示」を1タップで行えるようにする。
+   */
+  expandOnFirstTap?: boolean;
 }
 
 /** 生成候補一覧（元写真＋スタイル別の生成結果） */
@@ -24,6 +30,7 @@ export function ResultGallery({
   onRegenerate,
   isFavorite,
   onToggleFavorite,
+  expandOnFirstTap = false,
 }: Props) {
   return (
     <div className="result-grid">
@@ -62,14 +69,18 @@ export function ResultGallery({
             onClick={() => onSelect(img.id)}
           >
             <div className="rc-head">{img.styleName}</div>
-            {/* 1回目のクリックで選択、選択済みの画像をもう一度クリックすると拡大表示 */}
+            {/* PC: 1回目で選択・2回目で拡大 ／ スマホ: 1タップで拡大 */}
             <img
               src={img.dataUrl}
               alt={`${img.styleName}の生成イメージ`}
               onClick={(e) => {
                 e.stopPropagation();
-                if (selectedId === img.id) onExpand(img);
-                else onSelect(img.id);
+                if (expandOnFirstTap || selectedId === img.id) {
+                  onSelect(img.id);
+                  onExpand(img);
+                } else {
+                  onSelect(img.id);
+                }
               }}
             />
             <div className="rc-actions">

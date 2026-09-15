@@ -168,6 +168,19 @@ export const IconLock = (p: P) => (
     <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
   </Svg>
 );
+export const IconCamera = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 8.5a1.5 1.5 0 0 1 1.5-1.5h2.2a1 1 0 0 0 .84-.46l.92-1.4A1 1 0 0 1 9.3 4.7h5.4a1 1 0 0 1 .84.45l.92 1.4a1 1 0 0 0 .84.45h2.2A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
+    <circle cx="12" cy="13" r="3.6" />
+  </Svg>
+);
+export const IconSliders = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
+    <circle cx="16" cy="7" r="2.2" />
+    <circle cx="8" cy="17" r="2.2" />
+  </Svg>
+);
 export const IconPlus = (p: P) => (
   <Svg {...p}>
     <path d="M12 5v14M5 12h14" />

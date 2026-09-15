@@ -11,8 +11,25 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
+ * 画像ファイルとして受け付けられるかどうか。
+ *
+ * iPhoneで撮影した写真は HEIC / HEIF 形式のことがあり、
+ * さらに端末によっては file.type が空文字で渡ってくる。
+ * 拡張子でも判定し、読み込めるものは受け付ける方針にしている。
+ * （読み込めなかった場合は normalizeUploadedImage が例外を投げる）
+ */
+export function isAcceptableImage(file: File): boolean {
+  if (file.type.startsWith('image/')) return true;
+  return /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+}
+
+/**
  * アップロード画像を扱いやすいサイズへ縮小する。
- * （LocalStorageの容量上限に配慮し、長辺1600pxのJPEGに変換）
+ *
+ * - 長辺1600pxのJPEGに変換（LocalStorageの容量上限に配慮）
+ * - iPhoneのHEIC写真もJPEGに変換されるため、以降の処理は形式を意識しなくてよい
+ * - 撮影時の向き（EXIF Orientation）はブラウザ標準の image-orientation: from-image により
+ *   <img> 読み込みの時点で反映される（iOS Safari 13.4以降 / Chrome 81以降）
  */
 export async function normalizeUploadedImage(file: File): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -24,7 +41,9 @@ export async function normalizeUploadedImage(file: File): Promise<string> {
   const img = await loadImage(dataUrl);
   const max = 1600;
   const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-  if (scale === 1 && dataUrl.length < 1_200_000) return dataUrl;
+  const isJpegOrPng = /^data:image\/(jpeg|png)/.test(dataUrl);
+  // 小さいJPEG/PNGはそのまま使う。それ以外（HEIC等）は必ずJPEGへ変換する
+  if (scale === 1 && isJpegOrPng && dataUrl.length < 1_200_000) return dataUrl;
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(img.naturalWidth * scale);
   canvas.height = Math.round(img.naturalHeight * scale);

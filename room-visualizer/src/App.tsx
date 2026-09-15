@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Header } from './components/Header';
+import { BottomNav, Header } from './components/Header';
 import type { PageId } from './components/Header';
 import { GeneratePage } from './pages/GeneratePage';
 import { HistoryPage } from './pages/HistoryPage';
@@ -104,6 +104,9 @@ function Shell() {
       <p className="footer-note">
         Room Visualizer（モック版）｜{DISCLAIMER}
       </p>
+
+      {/* スマートフォン用ボトムナビ（640px以下でのみ表示） */}
+      <BottomNav page={page} onNavigate={goto} favoriteCount={favorites.length} />
 
       {toast && <div className="toast">{toast}</div>}
     </>

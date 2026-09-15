@@ -33,18 +33,27 @@ export function ImageModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{title}</h3>
-          {subtitle && <span className="hint" style={{ margin: 0 }}>{subtitle}</span>}
+          {subtitle && (
+            <span className="hint modal-sub" style={{ margin: 0 }}>
+              {subtitle}
+            </span>
+          )}
           <span className="spacer" />
           {onToggleFavorite && (
-            <button type="button" className="btn btn-sm" onClick={onToggleFavorite}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={onToggleFavorite}
+              aria-label={isFavorite ? 'お気に入り解除' : 'お気に入りに保存'}
+            >
               <IconHeart size={14} filled={isFavorite} />
-              {isFavorite ? 'お気に入り解除' : 'お気に入り'}
+              <span className="btn-label">{isFavorite ? 'お気に入り解除' : 'お気に入り'}</span>
             </button>
           )}
           {onDownload && (
-            <button type="button" className="btn btn-sm" onClick={onDownload}>
+            <button type="button" className="btn btn-sm" onClick={onDownload} aria-label="ダウンロード">
               <IconDownload size={14} />
-              ダウンロード
+              <span className="btn-label">ダウンロード</span>
             </button>
           )}
           <button type="button" className="icon-btn" onClick={onClose} aria-label="閉じる">
