@@ -84,6 +84,7 @@ function Shell() {
           uploadInputRef={uploadInputRef}
           notify={notify}
           burnNoticeOnDownload={burnNotice}
+          onOpenHistory={() => goto('history')}
         />
       )}
 

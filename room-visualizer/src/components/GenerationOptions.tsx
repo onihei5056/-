@@ -75,11 +75,13 @@ export function ChangeItemSelector({
 export function ReformSelector({
   selected,
   onToggle,
+  defaultOpen = true,
 }: {
   selected: string[];
   onToggle: (id: string) => void;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="card">
       <button type="button" className="accordion-btn" onClick={() => setOpen((v) => !v)}>
@@ -110,55 +112,71 @@ export function ReformSelector({
   );
 }
 
-/** ターゲット */
+/** ターゲット（折りたたみ） */
 export function TargetSelector({
   selected,
   onToggle,
+  defaultOpen = true,
 }: {
   selected: string[];
   onToggle: (id: string) => void;
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const summary = selected
+    .map((id) => TARGETS.find((t) => t.id === id)?.label)
+    .filter(Boolean)
+    .join('・');
   return (
     <section className="card">
-      <div className="card-head">
+      <button type="button" className="accordion-btn" onClick={() => setOpen((v) => !v)}>
         <span className="step">6</span>
-        <h2>ターゲット</h2>
-      </div>
-      <div className="card-body">
-        <div className="chip-group">
-          {TARGETS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`chip${selected.includes(t.id) ? ' on' : ''}`}
-              onClick={() => onToggle(t.id)}
-              aria-pressed={selected.includes(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+        ターゲット
+        <span className="count">{summary || '未選択'}</span>
+        <IconChevron size={16} open={open} />
+      </button>
+      {open && (
+        <div className="card-body" style={{ paddingTop: 0 }}>
+          <div className="chip-group">
+            {TARGETS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`chip${selected.includes(t.id) ? ' on' : ''}`}
+                onClick={() => onToggle(t.id)}
+                aria-pressed={selected.includes(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
 
-/** 自由入力 */
+/** 自由入力（折りたたみ） */
 export function FreeTextInput({
   value,
   onChange,
+  defaultOpen = true,
 }: {
   value: string;
   onChange: (v: string) => void;
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="card">
-      <div className="card-head">
+      <button type="button" className="accordion-btn" onClick={() => setOpen((v) => !v)}>
         <span className="step">7</span>
-        <h2>追加の希望</h2>
-        <span className="head-sub">任意</span>
-      </div>
-      <div className="card-body">
+        追加の希望
+        <span className="count">{value.trim() ? '入力あり' : '任意'}</span>
+        <IconChevron size={16} open={open} />
+      </button>
+      {open && (
+      <div className="card-body" style={{ paddingTop: 0 }}>
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -177,6 +195,7 @@ export function FreeTextInput({
           ))}
         </div>
       </div>
+      )}
     </section>
   );
 }

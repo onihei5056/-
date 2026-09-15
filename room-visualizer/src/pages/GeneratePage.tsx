@@ -24,6 +24,7 @@ import { ResultDetail } from '../components/ResultDetail';
 import { ImageModal } from '../components/ImageModal';
 import { LoadingOverlay, SkeletonGrid } from '../components/Loading';
 import { Disclaimer } from '../components/Disclaimer';
+import { QuickAdjust } from '../components/QuickAdjust';
 import { generateImage, MOCK_LATENCY_MS } from '../api/generateImage';
 import { STYLE_PRESETS } from '../mock/styles';
 import { sampleSourceImage, SAMPLE_PROPERTY_A } from '../mock/sampleProjects';
@@ -57,16 +58,27 @@ interface Props {
   uploadInputRef: React.RefObject<HTMLInputElement>;
   notify: (message: string) => void;
   burnNoticeOnDownload: boolean;
+  /** 履歴画面へ移動する（出先で既存案件の写真を使うとき用） */
+  onOpenHistory: () => void;
 }
 
-export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNoticeOnDownload }: Props) {
+export function GeneratePage({
+  initialRecord,
+  uploadInputRef,
+  notify,
+  burnNoticeOnDownload,
+  onOpenHistory,
+}: Props) {
   const { addRecord, updateRecord, toggleFavorite, isFavorite } = useAppStore();
 
   const [source, setSource] = useState<SourceImage | null>(initialRecord?.source ?? null);
   const [property, setProperty] = useState<PropertyInfo>(initialRecord?.property ?? EMPTY_PROPERTY);
-  const [condition, setCondition] = useState<GenerationCondition>(
-    initialRecord?.condition ?? DEFAULT_CONDITION,
-  );
+  const [condition, setCondition] = useState<GenerationCondition>(() => {
+    if (initialRecord?.condition) return initialRecord.condition;
+    // スマホは1枚ずつ確認する使い方が中心のため、既定のスタイルは1つに絞る
+    const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+    return phone ? { ...DEFAULT_CONDITION, styles: ['natural'] } : DEFAULT_CONDITION;
+  });
   const [results, setResults] = useState<GeneratedImage[]>(initialRecord?.results ?? []);
   const [recordId, setRecordId] = useState<string | null>(initialRecord?.id ?? null);
   const [selectedId, setSelectedId] = useState<string | null>(initialRecord?.results[0]?.id ?? null);
@@ -152,7 +164,14 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
 
   /** 1スタイルだけ生成して結果に反映する（再生成／別スタイル追加） */
   const runSingle = useCallback(
-    async (styleId: StyleId, replaceImageId?: string) => {
+    async (
+      styleId: StyleId,
+      replaceImageId?: string,
+      /** クイック変更のように、その場で条件を差し替えて作り直す場合に指定する */
+      conditionOverride?: Partial<GenerationCondition>,
+      /** 完了時のメッセージ（省略時は再生成／追加生成の既定文言） */
+      message?: string,
+    ) => {
       if (!source) return;
       const styleName = STYLE_PRESETS.find((s) => s.id === styleId)?.name ?? '';
       setLoading({ on: true, current: styleName, progress: 0.4 });
@@ -160,26 +179,34 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
         await new Promise((r) => setTimeout(r, MOCK_LATENCY_MS * 0.7));
         const { image } = await generateImage({
           source,
-          condition: { ...condition, roomType: source.isSample && source.sampleRoomType ? source.sampleRoomType : condition.roomType },
+          condition: {
+            ...condition,
+            ...conditionOverride,
+            roomType: source.isSample && source.sampleRoomType ? source.sampleRoomType : condition.roomType,
+          },
           styleId,
           property,
-          variantSeed: Date.now() % 10000,
+          // クイック変更は条件そのものが変わるため、ゆらぎ（seed）は加えない
+          variantSeed: conditionOverride ? undefined : Date.now() % 10000,
         });
-        setResults((prev) => {
-          const next = replaceImageId
-            ? prev.map((p) => (p.id === replaceImageId ? image : p))
-            : [...prev, image];
-          if (recordId) updateRecord(recordId, (rec) => ({ ...rec, results: next }));
-          return next;
-        });
+        // setResultsの更新関数の中で他コンポーネントのstateを更新しないよう、
+        // 次の配列を先に確定させてから反映する（Reactの警告回避）
+        const next = replaceImageId
+          ? results.map((p) => (p.id === replaceImageId ? image : p))
+          : [...results, image];
+        setResults(next);
+        if (recordId) updateRecord(recordId, (rec) => ({ ...rec, results: next }));
         setSelectedId(image.id);
         setMobileTab('results');
-        notify(replaceImageId ? `「${styleName}」を再生成しました` : `「${styleName}」を追加生成しました`);
+        notify(
+          message ??
+            (replaceImageId ? `「${styleName}」を再生成しました` : `「${styleName}」を追加生成しました`),
+        );
       } finally {
         setLoading({ on: false, current: '', progress: 1 });
       }
     },
-    [source, condition, property, recordId, updateRecord, notify],
+    [source, condition, property, results, recordId, updateRecord, notify],
   );
 
   // ----------------------------------------------------------
@@ -224,6 +251,21 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
     setCondition((c) => ({ ...c, roomType: 'ldk' }));
     notify('サンプル写真を読み込みました');
   }, [notify]);
+
+  /**
+   * クイック変更：リフォーム項目を切り替えて、表示中の画像だけを作り直す。
+   * 設定パネルの状態も同時に更新するため、PCの左パネルとも内容が一致する。
+   */
+  const applyQuickAdjust = useCallback(
+    async (nextReformItems: string[]) => {
+      if (!selected) return;
+      setCondition((c) => ({ ...c, reformItems: nextReformItems }));
+      await runSingle(selected.styleId, selected.id, { reformItems: nextReformItems }, '内装を変更しました');
+      // 変更後の画像がすぐ見えるように、比較エリアまで戻す
+      compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [selected, runSingle],
+  );
 
   const scrollToCompare = () => {
     setMobileTab('results');
@@ -287,6 +329,7 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
               }
             }}
             onUseSample={useSample}
+            onOpenHistory={onOpenHistory}
             inputRef={uploadInputRef}
           />
           <PropertyForm value={property} onChange={setProperty} />
@@ -302,15 +345,22 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
             selected={condition.changeItems}
             onToggle={(id) => setCond('changeItems', toggleIn(condition.changeItems, id))}
           />
+          {/* スマホでは下位の設定を折りたたみ、スクロール量を減らす */}
           <ReformSelector
             selected={condition.reformItems}
             onToggle={(id) => setCond('reformItems', toggleIn(condition.reformItems, id))}
+            defaultOpen={!isPhone}
           />
           <TargetSelector
             selected={condition.targets}
             onToggle={(id) => setCond('targets', toggleIn(condition.targets, id))}
+            defaultOpen={!isPhone}
           />
-          <FreeTextInput value={condition.freeText} onChange={(v) => setCond('freeText', v)} />
+          <FreeTextInput
+            value={condition.freeText}
+            onChange={(v) => setCond('freeText', v)}
+            defaultOpen={!isPhone}
+          />
 
           {!isPhone && (
             <div className="card card-pad generate-box">
@@ -383,6 +433,16 @@ export function GeneratePage({ initialRecord, uploadInputRef, notify, burnNotice
                 <IconLock size={13} />
                 窓・柱・梁・ドア・間取り・撮影アングルは元写真のまま。家具と内装のみを変更しています。
               </p>
+
+              {/* 出先で「壁紙だけ変えて見せたい」に1タップで応えるための導線 */}
+              {selected && (
+                <QuickAdjust
+                  selected={condition.reformItems}
+                  onApply={(next) => void applyQuickAdjust(next)}
+                  disabled={loading.on}
+                  styleName={selected.styleName}
+                />
+              )}
             </div>
             {loading.on && <LoadingOverlay current={loading.current} progress={loading.progress} />}
           </section>

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { SourceImage } from '../types';
-import { IconCamera, IconImage, IconRefresh, IconTrash, IconUpload } from '../icons';
+import { IconCamera, IconHistory, IconImage, IconRefresh, IconTrash, IconUpload } from '../icons';
 import { isAcceptableImage, normalizeUploadedImage } from '../utils/image';
 import { useIsPhone } from '../hooks/useMediaQuery';
 
@@ -14,10 +14,12 @@ interface Props {
   source: SourceImage | null;
   onChange: (source: SourceImage | null) => void;
   onUseSample: () => void;
+  /** 履歴画面へ移動する（出先で、事務所で登録済みの物件写真を使うとき用） */
+  onOpenHistory?: () => void;
   inputRef?: React.RefObject<HTMLInputElement>;
 }
 
-export function UploadPanel({ source, onChange, onUseSample, inputRef }: Props) {
+export function UploadPanel({ source, onChange, onUseSample, onOpenHistory, inputRef }: Props) {
   const localRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = inputRef ?? localRef;
@@ -75,6 +77,12 @@ export function UploadPanel({ source, onChange, onUseSample, inputRef }: Props) 
                   <IconImage size={17} />
                   写真ライブラリから選ぶ
                 </button>
+                {onOpenHistory && (
+                  <button type="button" className="btn btn-lg" onClick={onOpenHistory}>
+                    <IconHistory size={17} />
+                    登録済みの物件から選ぶ
+                  </button>
+                )}
               </div>
             ) : (
               <div

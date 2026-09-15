@@ -105,7 +105,8 @@ export function buildSceneSpec(req: GenerateImageRequest): SceneSpec {
     palette.ceiling = '#ffffff';
   }
   if (reform.has('accentCloth')) {
-    palette.accentWall = shade(palette.fabricDark, 0.25);
+    // スタイルごとのアクセント色を使い、変化がひと目で分かるようにする
+    palette.accentWall = shade(palette.art2, -0.08);
   }
   if (reform.has('downlight')) lighting = 'downlight';
   if (reform.has('doors')) {

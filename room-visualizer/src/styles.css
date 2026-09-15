@@ -298,6 +298,24 @@ textarea { resize: vertical; min-height: 78px; line-height: 1.6; }
 .sbs img { width: 100%; display: block; aspect-ratio: 3 / 2; object-fit: cover; border-radius: var(--radius); background: #edf0ef; }
 .sbs figcaption { font-size: 11.5px; color: var(--muted); margin-top: 5px; text-align: center; }
 
+/* クイック変更バー */
+.quick-adjust {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  border-radius: var(--radius);
+  padding: 10px 12px 11px;
+  margin-top: 12px;
+}
+.qa-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--accent-dark); margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.qa-head .qa-note { font-weight: 400; font-size: 11.5px; color: var(--muted); margin-left: auto; }
+.qa-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.qa-chips .chip { background: var(--surface); }
+.qa-chips .chip.on { background: var(--accent); }
+
 /* 生成候補グリッド */
 .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 12px; }
 .result-card {
@@ -672,6 +690,10 @@ code.inline { background: #f1f4f3; border: 1px solid var(--line); border-radius:
   .ba-knob { width: 44px; height: 44px; }
   .ba-tag { font-size: 10.5px; padding: 3px 8px; }
   .ba-toggle button { min-height: 36px; padding: 6px 12px; }
+  /* クイック変更：出先での主動線なので、横スクロールさせず全項目を見せる */
+  .quick-adjust { padding: 11px 12px 12px; }
+  .qa-head .qa-note { width: 100%; margin-left: 0; }
+  .qa-chips .chip { flex: 1 1 calc(50% - 3px); }
   .card-head { flex-wrap: wrap; }
   .card-head .head-sub { width: 100%; margin-left: 0; }
 
