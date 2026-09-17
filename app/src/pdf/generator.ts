@@ -127,8 +127,8 @@ async function buildBlocks(caseId: string): Promise<{ blocks: HTMLElement[]; sur
   // ===== 帳票1: 不動産調査シート =====
   blocks.push(buildTitleBlock('不動産調査シート', '出典様式: 不動産調査シート_2026.3.1.xlsx'));
   blocks.push(
-    buildFieldsTableBlock('案件情報', [
-      { label: '案件名', value: surveyCase.name },
+    buildFieldsTableBlock('物件情報', [
+      { label: '物件名', value: surveyCase.name },
       { label: '物件所在地', value: surveyCase.address },
       { label: '調査日', value: surveyCase.surveyDate },
       { label: '調査担当者', value: surveyCase.surveyor },

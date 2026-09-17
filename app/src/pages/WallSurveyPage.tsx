@@ -18,9 +18,9 @@ import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import { PhotoManager } from '../components/PhotoManager';
 import { DateField, MultiField, SegmentField, TextField } from '../components/WallFields';
-import { FLOW_STEPS, nextStep, prevStep, stepIndexOf } from '../schema/flow';
-import { computeOverallPercent } from '../utils/progress';
-import { countMissingRequired } from '../utils/validation';
+import { SectionTabs } from '../components/SectionTabs';
+import { useCaseProgress } from '../hooks/useCaseProgress';
+import { nextStep, prevStep } from '../schema/flow';
 
 export function WallSurveyPage() {
   const { caseId = '' } = useParams();
@@ -32,9 +32,7 @@ export function WallSurveyPage() {
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const sectionId = 'wall-survey';
-  const stepNumber = stepIndexOf(sectionId) + 1;
-  const percent = computeOverallPercent(issues);
-  const missing = countMissingRequired(issues);
+  const { progress, refresh: refreshProgress } = useCaseProgress(caseId);
   const prev = prevStep(sectionId);
   const next = nextStep(sectionId);
   const wallIssues = issues.filter((i) => i.sectionId === sectionId);
@@ -88,12 +86,12 @@ export function WallSurveyPage() {
         caseName={surveyCase?.name ?? ''}
         address={surveyCase?.address}
         stepLabel="擁壁調査シート"
-        stepNumber={stepNumber}
-        totalSteps={FLOW_STEPS.length}
-        percent={percent}
+        percent={progress.overall.percent}
         saveState="saved"
-        missingRequiredCount={missing}
+        filled={progress.overall.filled}
+        total={progress.overall.total}
       />
+      <SectionTabs caseId={caseId} current={sectionId} progress={progress} />
       <div className="page-body">
         <h2 className="section-title">擁壁調査シート</h2>
         {wallRequired === false && walls.length === 0 && (
@@ -349,9 +347,11 @@ export function WallSurveyPage() {
       </div>
       <BottomNav
         onBack={prev ? () => navigate(prev.path(caseId)) : undefined}
-        onSave={async () => refresh()}
+        onSave={async () => {
+          await Promise.all([refresh(), refreshProgress()]);
+        }}
         onNext={async () => {
-          await refresh();
+          await Promise.all([refresh(), refreshProgress()]);
           if (next) navigate(next.path(caseId));
         }}
       />

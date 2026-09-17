@@ -79,17 +79,17 @@ const sellerInfo: SectionDef = {
   stepIndex: 1,
   groups: [
     g('uriteki', '売主・物件種別', [
-      f({ id: 'sellerName', label: '売主', type: 'text', required: true, maxLength: 60, excelRef: '不動産調査シート!A2' }),
+      f({ id: 'sellerName', label: '売主', type: 'text', maxLength: 60, excelRef: '不動産調査シート!A2' }),
       f({ id: 'judgmentCapacity', label: '判断能力', type: 'radio', options: YES_NO, note: note(1), excelRef: '不動産調査シート!F2' }),
       f({ id: 'ownershipForm', label: '名義', type: 'radio', options: opts('単独', '共有'), note: note(2), excelRef: '不動産調査シート!F2' }),
-      f({ id: 'propertyType', label: '物件種別', type: 'radio', required: true, options: opts('土地', '既存住宅', '新築住宅'), excelRef: '不動産調査シート!J2' })
+      f({ id: 'propertyType', label: '物件種別', type: 'radio', options: opts('土地', '既存住宅', '新築住宅'), excelRef: '不動産調査シート!J2' })
     ]),
     g('mendan', '面談者・調査情報', [
       f({ id: 'interviewee', label: '面談者', type: 'radio', options: opts('売主本人', '売主以外'), excelRef: '不動産調査シート!B3' }),
       f({ id: 'intervieweeRelation', label: '売主との関係', type: 'text', maxLength: 40,
         condition: { fieldId: 'interviewee', equals: '売主以外' }, excelRef: '不動産調査シート!E3' }),
-      f({ id: 'surveyDate', label: '調査日', type: 'date', required: true, excelRef: '不動産調査シート!H3,I3' }),
-      f({ id: 'staffName', label: '担当', type: 'text', required: true, maxLength: 40, excelRef: '不動産調査シート!G4' })
+      f({ id: 'surveyDate', label: '調査日', type: 'date', excelRef: '不動産調査シート!H3,I3' }),
+      f({ id: 'staffName', label: '担当', type: 'text', maxLength: 40, excelRef: '不動産調査シート!G4' })
     ]),
     g('meigi', '登記名義人の現況・売却理由', [
       f({ id: 'ownerStatus', label: '登記名義人の現況', type: 'radio', options: opts('同居', '別居', '施設', '死亡'), note: note(3), excelRef: '不動産調査シート!B4' }),
@@ -124,10 +124,10 @@ const sellerInfo: SectionDef = {
         condition: { fieldId: 'moveOutTiming', equals: 'その他' }, excelRef: '不動産調査シート!B12' })
     ]),
     g('zanchi', '残置物・境界明示・契約不適合', [
-      f({ id: 'leftover', label: '残置物', type: 'radio', required: true, options: YES_NO, excelRef: '不動産調査シート!B13' }),
+      f({ id: 'leftover', label: '残置物', type: 'radio', options: YES_NO, excelRef: '不動産調査シート!B13' }),
       f({ id: 'leftoverHandling', label: '残置物の処分', type: 'radio', options: opts('売主にて処分', '現況渡し'),
         condition: { fieldId: 'leftover', equals: '有' }, excelRef: '不動産調査シート!B13' }),
-      f({ id: 'boundaryClarity', label: '境界明示', type: 'radio', required: true, options: opts('非明示', '明示'), excelRef: '不動産調査シート!B14' }),
+      f({ id: 'boundaryClarity', label: '境界明示', type: 'radio', options: opts('非明示', '明示'), excelRef: '不動産調査シート!B14' }),
       f({ id: 'boundaryMethod', label: '明示方法', type: 'checkbox-multi', options: opts('境界復元', '確定測量', '現況確認のみ'),
         condition: { fieldId: 'boundaryClarity', equals: '明示' }, excelRef: '不動産調査シート!B14' }),
       f({ id: 'contractNonconformity', label: '契約不適合', type: 'checkbox-multi', options: opts('有', '免責', 'インスペクション'), excelRef: '不動産調査シート!B15' })
@@ -175,7 +175,7 @@ const propertyRights: SectionDef = {
       f({ id: 'propertyTaxYear', label: '固都税 年度', type: 'number', unit: '年度', min: 1900, max: 2200, excelRef: '不動産調査シート!B21' })
     ]),
     g('senyu', '第三者占有', [
-      f({ id: 'thirdPartyOccupancy', label: '第三者占有', type: 'radio', required: true, options: YES_NO, note: note(6), excelRef: '不動産調査シート!A22,B22' }),
+      f({ id: 'thirdPartyOccupancy', label: '第三者占有', type: 'radio', options: YES_NO, note: note(6), excelRef: '不動産調査シート!A22,B22' }),
       f({ id: 'occupancyType', label: '占有の種類', type: 'radio', options: opts('賃貸借', '使用貸借'),
         condition: { fieldId: 'thirdPartyOccupancy', equals: '有' }, excelRef: '不動産調査シート!B22' }),
       f({ id: 'monthlyRent', label: '月額賃料', type: 'number', unit: '万円', min: 0,
@@ -269,7 +269,7 @@ const cityOffice: SectionDef = {
         condition: { fieldId: 'officeDocs', equals: '位置指定図面' }, excelRef: '不動産調査シート2026.3.1!B4' })
     ]),
     g('keikakudoro', '計画道路他', [
-      f({ id: 'planRoad', label: '計画道路', type: 'radio', required: true, options: YES_NO, excelRef: '不動産調査シート2026.3.1!B7' }),
+      f({ id: 'planRoad', label: '計画道路', type: 'radio', options: YES_NO, excelRef: '不動産調査シート2026.3.1!B7' }),
       f({ id: 'planRoadStage', label: '計画道路の段階', type: 'checkbox-multi', options: opts('1.計画決定', '2.事業決定'),
         condition: { fieldId: 'planRoad', equals: '有' }, excelRef: '不動産調査シート2026.3.1!B7' }),
       f({ id: 'planRoadName', label: '計画道路 名称', type: 'text', maxLength: 60,
@@ -280,7 +280,7 @@ const cityOffice: SectionDef = {
       f({ id: 'urbanDevelopmentProject', label: '市街地開発事業', type: 'radio', options: YES_NO, excelRef: '不動産調査シート2026.3.1!B8' })
     ]),
     g('youto1', '用途地域①', [
-      f({ id: 'zoning', label: '用途地域', type: 'radio', required: true,
+      f({ id: 'zoning', label: '用途地域', type: 'radio',
         options: opts('一低', '二低', '田住', '一中高', '二中高', '一住', '二住', '準住', '近商', '商業', '準工', '工業', '工専', '指定なし(調整)', '都計外'),
         excelRef: '不動産調査シート2026.3.1!B9,B10' })
     ]),
@@ -325,7 +325,7 @@ const cityOffice: SectionDef = {
       f({ id: 'farExceeded', label: '容積率超過', type: 'radio', options: YES_NO, excelRef: '不動産調査シート2026.3.1!B20' })
     ]),
     g('doro', '道路種別', [
-      f({ id: 'roadPublicPrivate', label: '道路区分', type: 'radio', required: true, options: opts('公道', '私道'), note: note(12), excelRef: '不動産調査シート2026.3.1!B21,B22' }),
+      f({ id: 'roadPublicPrivate', label: '道路区分', type: 'radio', options: opts('公道', '私道'), note: note(12), excelRef: '不動産調査シート2026.3.1!B21,B22' }),
       f({ id: 'privateRoadPermit', label: '私道 通行掘削許可', type: 'radio', options: YES_NO,
         condition: { fieldId: 'roadPublicPrivate', equals: '私道' }, excelRef: '不動産調査シート2026.3.1!B21,B22' }),
       f({ id: 'road1Side', label: '幅員① 方位・位置', type: 'text', maxLength: 30, note: '※幅員は現地計測が必須です。(計測箇所を写真におさめる)役所書類等は参考にしない', excelRef: '不動産調査シート2026.3.1!B21' }),
@@ -421,7 +421,7 @@ const utilities: SectionDef = {
         note: '※下部、別シートの設備状況写真も提出必須', excelRef: '不動産調査シート2026.3.1!B42' })
     ]),
     g('inyosui', '飲用水', [
-      f({ id: 'waterSupply', label: '飲用水', type: 'radio', required: true, options: opts('公営', '私営', '井戸'), excelRef: '不動産調査シート2026.3.1!B43' }),
+      f({ id: 'waterSupply', label: '飲用水', type: 'radio', options: opts('公営', '私営', '井戸'), excelRef: '不動産調査シート2026.3.1!B43' }),
       f({ id: 'privatePipe', label: '私設管', type: 'radio', options: YES_NO, excelRef: '不動産調査シート2026.3.1!B43' }),
       f({ id: 'inletDiameter', label: '引込管口径', type: 'number', unit: 'ｍｍ', min: 0, needsPhoto: true, excelRef: '不動産調査シート2026.3.1!B43' }),
       f({ id: 'meterRight', label: 'メーター権利', type: 'number', unit: 'ｍｍ', min: 0, excelRef: '不動産調査シート2026.3.1!B44' }),
@@ -442,7 +442,7 @@ const utilities: SectionDef = {
         condition: { fieldId: 'cableTv', equals: '有' }, excelRef: '不動産調査シート2026.3.1!B46' })
     ]),
     g('taiyoko', '太陽光', [
-      f({ id: 'solar', label: '太陽光', type: 'radio', required: true, options: opts('無', '有'), note: note(18), excelRef: '不動産調査シート2026.3.1!B47' }),
+      f({ id: 'solar', label: '太陽光', type: 'radio', options: opts('無', '有'), note: note(18), excelRef: '不動産調査シート2026.3.1!B47' }),
       f({ id: 'solarCapacity', label: '搭載容量', type: 'number', unit: 'kw', min: 0,
         condition: { fieldId: 'solar', equals: '有' }, excelRef: '不動産調査シート2026.3.1!B47' }),
       f({ id: 'solarContractFrom', label: '契約期間(開始)', type: 'date',
@@ -453,14 +453,14 @@ const utilities: SectionDef = {
         condition: { fieldId: 'solar', equals: '有' }, excelRef: '不動産調査シート2026.3.1!B48' })
     ]),
     g('gas', 'ガス', [
-      f({ id: 'gasType', label: 'ガス', type: 'radio', required: true, options: opts('都市ガス', 'LPガス'), excelRef: '不動産調査シート2026.3.1!B49' }),
+      f({ id: 'gasType', label: 'ガス', type: 'radio', options: opts('都市ガス', 'LPガス'), excelRef: '不動産調査シート2026.3.1!B49' }),
       f({ id: 'lpCompany', label: 'LPガス 会社名', type: 'text', maxLength: 60,
         condition: { fieldId: 'gasType', equals: 'LPガス' }, excelRef: '不動産調査シート2026.3.1!B49' }),
       f({ id: 'lpContact', label: 'LPガス 連絡先', type: 'text', maxLength: 60,
         condition: { fieldId: 'gasType', equals: 'LPガス' }, excelRef: '不動産調査シート2026.3.1!B49' })
     ]),
     g('haisui', '汚水・雑排水', [
-      f({ id: 'drainageType', label: '汚水・雑排水', type: 'radio', required: true, options: opts('下水道', '浄化槽', '汲取式'), note: note(19), excelRef: '不動産調査シート2026.3.1!B50〜B53' }),
+      f({ id: 'drainageType', label: '汚水・雑排水', type: 'radio', options: opts('下水道', '浄化槽', '汲取式'), note: note(19), excelRef: '不動産調査シート2026.3.1!B50〜B53' }),
       f({ id: 'beneficiaryCharge', label: '受益者負担金', type: 'radio', options: DONE_NOT,
         condition: { fieldId: 'drainageType', equals: '下水道' }, excelRef: '不動産調査シート2026.3.1!B50' }),
       f({ id: 'beneficiaryChargeUnit', label: '受益者負担金 ㎡単価', type: 'number', unit: '円',
@@ -505,7 +505,7 @@ const surroundings: SectionDef = {
       f({ id: 'cbFoundation', label: '基礎', type: 'radio', options: YES_NO, excelRef: '不動産調査シート2026.3.1!B55' })
     ]),
     g('yoheki', '擁壁', [
-      f({ id: 'hasWall', label: '擁壁', type: 'radio', required: true, options: YES_NO,
+      f({ id: 'hasWall', label: '擁壁', type: 'radio', options: YES_NO,
         note: '※擁壁がある場合は擁壁調査シートの提出が必須です(「有」で擁壁調査が入力対象になります)',
         excelRef: '不動産調査シート2026.3.1!A57,B57' }),
       f({ id: 'heightDifference', label: '周辺高低差', type: 'radio', options: YES_NO, excelRef: '不動産調査シート2026.3.1!B58' }),

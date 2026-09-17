@@ -93,7 +93,7 @@ export function CaseListPage() {
         <div className="field">
           <input
             className="input"
-            placeholder="案件名・所在地・調査日・担当者で検索"
+            placeholder="物件名・所在地・調査日・担当者で検索"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
           />
@@ -129,7 +129,7 @@ export function CaseListPage() {
         {filtered.map((c) => (
           <div className="case-item" key={c.id}>
             <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/case/${c.id}/seller-info`)}>
-              <div className="case-item__name">{c.name || '(案件名未設定)'}</div>
+              <div className="case-item__name">{c.name || '(物件名未設定)'}</div>
               <div className="case-item__address">{c.address || '(所在地未設定)'}</div>
               <div className="case-item__meta">
                 <span className={`pill ${statusLabel[c.status].cls}`}>{statusLabel[c.status].text}</span>
