@@ -10,7 +10,8 @@ export function CaseNewPage() {
   const [surveyDate, setSurveyDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [surveyor, setSurveyor] = useState(getCurrentUser());
 
-  const canCreate = name.trim() !== '' && address.trim() !== '';
+  // 必須は物件名のみ。所在地・調査日・担当は後から入力できる。
+  const canCreate = name.trim() !== '';
 
   const handleCreate = async () => {
     const id = uid();
@@ -54,14 +55,13 @@ export function CaseNewPage() {
           <h3 className="card-title">案件情報</h3>
           <div className="field">
             <label className="field-label">
-              案件名<span className="field-required">必須</span>
+              物件名<span className="field-required">必須</span>
             </label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 渋谷区サンプル1-2-3 戸建調査" />
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 渋谷区サンプル1-2-3 戸建" />
+            <div className="field-note">必須はこの項目だけです。ほかは後からいつでも入力できます。</div>
           </div>
           <div className="field">
-            <label className="field-label">
-              物件所在地<span className="field-required">必須</span>
-            </label>
+            <label className="field-label">物件所在地</label>
             <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="例: 東京都渋谷区サンプル1-2-3" />
           </div>
           <div className="field">

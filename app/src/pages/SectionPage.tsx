@@ -4,12 +4,13 @@ import { useSectionAnswers } from '../hooks/useSectionAnswers';
 import { useCase } from '../hooks/useCase';
 import { useIssues } from '../hooks/useIssues';
 import { useGlobalAnswers } from '../hooks/useGlobalAnswers';
+import { useCaseProgress } from '../hooks/useCaseProgress';
 import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import { DynamicForm } from '../components/DynamicForm';
-import { FLOW_STEPS, nextStep, prevStep, stepIndexOf } from '../schema/flow';
-import { computeOverallPercent } from '../utils/progress';
-import { countMissingRequired } from '../utils/validation';
+import { SectionTabs } from '../components/SectionTabs';
+import { nextStep, prevStep } from '../schema/flow';
+import { computeSectionProgress } from '../utils/progress';
 
 export function SectionPage() {
   const { caseId = '', sectionId = '' } = useParams();
@@ -19,26 +20,21 @@ export function SectionPage() {
   const { values, manualOverride, saveState, setValue, setManual, saveNow } = useSectionAnswers(caseId, sectionId);
   const { issues, refresh } = useIssues(caseId);
   const { globals, refresh: refreshGlobals } = useGlobalAnswers(caseId);
+  const { progress, refresh: refreshProgress } = useCaseProgress(caseId);
 
   if (!section) {
     return <div className="page-body">セクションが見つかりません。</div>;
   }
 
-  const stepNumber = stepIndexOf(sectionId) + 1;
-  const percent = computeOverallPercent(issues);
-  const missing = countMissingRequired(issues);
+  // 入力中の値で即座に反映したいので、このセクションだけは手元の値から計算する
+  const sectionProgress = computeSectionProgress(sectionId, values);
   const sectionIssues = issues.filter((i) => i.sectionId === sectionId);
   const prev = prevStep(sectionId);
   const next = nextStep(sectionId);
 
-  const goNext = async () => {
+  const syncAll = async () => {
     await saveNow();
-    const result = await refresh();
-    const hasError = result.some((i) => i.sectionId === sectionId && i.level === 'error');
-    if (hasError && !window.confirm('この画面に未入力の必須項目があります。このまま次へ進みますか?')) {
-      return;
-    }
-    if (next) navigate(next.path(caseId));
+    await Promise.all([refresh(), refreshGlobals(), refreshProgress()]);
   };
 
   return (
@@ -47,18 +43,22 @@ export function SectionPage() {
         caseName={surveyCase?.name ?? ''}
         address={surveyCase?.address}
         stepLabel={section.title}
-        stepNumber={stepNumber}
-        totalSteps={FLOW_STEPS.length}
-        percent={percent}
+        percent={progress.overall.percent}
         saveState={saveState}
-        missingRequiredCount={missing}
+        filled={progress.overall.filled}
+        total={progress.overall.total}
       />
+      <SectionTabs caseId={caseId} current={sectionId} progress={progress} />
       <div className="page-body">
-        <h2 className="section-title">{section.title}</h2>
-        {sectionIssues.some((i) => i.level === 'error') && (
-          <div className="confirm-box">この画面には未入力の必須項目があります。下記でご確認ください。</div>
-        )}
+        <h2 className="section-title">
+          {section.title}
+          <span className="section-title__count">
+            {sectionProgress.filled}/{sectionProgress.total} 入力済み
+          </span>
+        </h2>
+
         <DynamicForm
+          sectionId={sectionId}
           groups={section.groups}
           values={values}
           globals={globals}
@@ -70,12 +70,11 @@ export function SectionPage() {
       </div>
       <BottomNav
         onBack={prev ? () => navigate(prev.path(caseId)) : () => navigate('/')}
-        onSave={async () => {
-          await saveNow();
-          await refresh();
-          await refreshGlobals();
+        onSave={syncAll}
+        onNext={async () => {
+          await syncAll();
+          if (next) navigate(next.path(caseId));
         }}
-        onNext={goNext}
         saving={saveState === 'saving'}
       />
     </div>

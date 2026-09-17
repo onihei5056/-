@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useCase } from '../hooks/useCase';
 import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
-import { FLOW_STEPS, prevStep, stepIndexOf } from '../schema/flow';
+import { prevStep } from '../schema/flow';
+import { SectionTabs } from '../components/SectionTabs';
+import { useCaseProgress } from '../hooks/useCaseProgress';
 import { generatePdfBlob, pdfFileName } from '../pdf/generator';
 import { db, addAuditLog } from '../db/db';
 
@@ -18,7 +20,7 @@ export function PdfPreviewPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const sectionId = 'pdf-preview';
-  const stepNumber = stepIndexOf(sectionId) + 1;
+  const { progress } = useCaseProgress(caseId);
   const prev = prevStep(sectionId);
 
   const generate = async () => {
@@ -88,12 +90,12 @@ export function PdfPreviewPage() {
         caseName={surveyCase?.name ?? ''}
         address={surveyCase?.address}
         stepLabel="PDFプレビュー"
-        stepNumber={stepNumber}
-        totalSteps={FLOW_STEPS.length}
-        percent={100}
+        percent={progress.overall.percent}
         saveState="saved"
-        missingRequiredCount={0}
+        filled={progress.overall.filled}
+        total={progress.overall.total}
       />
+      <SectionTabs caseId={caseId} current={sectionId} progress={progress} />
       <div className="page-body">
         <h2 className="section-title">PDFプレビュー</h2>
         <div className="card">

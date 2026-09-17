@@ -19,7 +19,7 @@ function datePair(
   from: unknown,
   to: unknown,
   message: string,
-  level: 'error' | 'warning' = 'error'
+  level: 'error' | 'warning' = 'warning'
 ) {
   if (typeof from === 'string' && typeof to === 'string' && from && to && new Date(from) > new Date(to)) {
     issues.push({ sectionId, fieldId, level, category: 'date', message });
@@ -28,7 +28,8 @@ function datePair(
 
 /**
  * 案件全体の入力チェック。
- * エラー(修正必須)と警告(確認後続行可)に分けて返す。
+ * 必須項目は「物件名」のみ(案件作成時に入力済み)としたため、
+ * ここで返すのはすべて「確認をおすすめする事項」であり、入力やPDF出力を妨げない。
  */
 export async function validateCase(caseId: string): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
@@ -47,7 +48,7 @@ export async function validateCase(caseId: string): Promise<ValidationIssue[]> {
           issues.push({
             sectionId: section.id,
             fieldId: field.id,
-            level: 'error',
+            level: 'warning',
             category: 'required',
             message: `「${field.label}」が未入力です`
           });
@@ -60,7 +61,7 @@ export async function validateCase(caseId: string): Promise<ValidationIssue[]> {
             issues.push({
               sectionId: section.id,
               fieldId: field.id,
-              level: 'error',
+              level: 'warning',
               category: 'format',
               message: `「${field.label}」は数値で入力してください`
             });
@@ -174,7 +175,7 @@ export async function validateCase(caseId: string): Promise<ValidationIssue[]> {
     if (walls.length === 0) {
       issues.push({
         sectionId: 'wall-survey',
-        level: 'error',
+        level: 'warning',
         category: 'required',
         message: '擁壁「有」ですが擁壁調査シートが1件も登録されていません'
       });
@@ -184,7 +185,7 @@ export async function validateCase(caseId: string): Promise<ValidationIssue[]> {
         issues.push({
           sectionId: 'wall-survey',
           wallId: wall.id,
-          level: 'error',
+          level: 'warning',
           category: 'required',
           message: `擁壁調査(${wall.index}) の設置場所が未入力です`
         });
@@ -202,7 +203,7 @@ export async function validateCase(caseId: string): Promise<ValidationIssue[]> {
         issues.push({
           sectionId: 'wall-survey',
           wallId: wall.id,
-          level: 'error',
+          level: 'warning',
           category: 'photo',
           message: `擁壁調査(${wall.index}) の全景写真が未登録です`
         });
@@ -213,7 +214,7 @@ export async function validateCase(caseId: string): Promise<ValidationIssue[]> {
         issues.push({
           sectionId: 'wall-survey',
           wallId: wall.id,
-          level: 'error',
+          level: 'warning',
           category: 'photo',
           message: `擁壁調査(${wall.index}) は不具合箇所が選択されていますが不具合箇所の写真が未登録です`
         });

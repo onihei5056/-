@@ -6,9 +6,9 @@ import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import { PhotoManager } from '../components/PhotoManager';
 import { PHOTO_CATEGORIES, PHOTO_SHEET_NOTES, PHOTO_DISCLAIMER_TEMPLATE } from '../schema/sections';
-import { FLOW_STEPS, nextStep, prevStep, stepIndexOf } from '../schema/flow';
-import { computeOverallPercent } from '../utils/progress';
-import { countMissingRequired } from '../utils/validation';
+import { SectionTabs } from '../components/SectionTabs';
+import { useCaseProgress } from '../hooks/useCaseProgress';
+import { nextStep, prevStep } from '../schema/flow';
 import type { PhotoCategoryKey } from '../types';
 
 export function EquipmentPhotosPage() {
@@ -18,9 +18,7 @@ export function EquipmentPhotosPage() {
   const { issues, refresh } = useIssues(caseId);
 
   const sectionId = 'equipment-photos';
-  const stepNumber = stepIndexOf(sectionId) + 1;
-  const percent = computeOverallPercent(issues);
-  const missing = countMissingRequired(issues);
+  const { progress, refresh: refreshProgress } = useCaseProgress(caseId);
   const prev = prevStep(sectionId);
   const next = nextStep(sectionId);
   const photoWarnings = issues.filter((i) => i.sectionId === sectionId);
@@ -34,12 +32,12 @@ export function EquipmentPhotosPage() {
         caseName={surveyCase?.name ?? ''}
         address={surveyCase?.address}
         stepLabel="設備現況写真"
-        stepNumber={stepNumber}
-        totalSteps={FLOW_STEPS.length}
-        percent={percent}
+        percent={progress.overall.percent}
         saveState="saved"
-        missingRequiredCount={missing}
+        filled={progress.overall.filled}
+        total={progress.overall.total}
       />
+      <SectionTabs caseId={caseId} current={sectionId} progress={progress} />
       <div className="page-body">
         <h2 className="section-title">設備現況写真</h2>
 
@@ -93,10 +91,10 @@ export function EquipmentPhotosPage() {
       <BottomNav
         onBack={prev ? () => navigate(prev.path(caseId)) : undefined}
         onSave={async () => {
-          await refresh();
+          await Promise.all([refresh(), refreshProgress()]);
         }}
         onNext={async () => {
-          await refresh();
+          await Promise.all([refresh(), refreshProgress()]);
           if (next) navigate(next.path(caseId));
         }}
       />
