@@ -1,8 +1,6 @@
 import { SECTIONS } from '../schema/sections';
-import { UI_SECTIONS } from '../schema/uiSections';
-import { FITTINGS_ROWS, fittingsKey } from '../schema/fittings';
 import { isFieldVisible } from './condition';
-import type { AnswerValue, FittingsRow, SectionAnswers } from '../types';
+import type { AnswerValue, SectionAnswers } from '../types';
 
 /**
  * 進捗の考え方。
@@ -61,27 +59,6 @@ export function computeSectionProgress(sectionId: string, values: Record<string,
   return toProgress(filled, total);
 }
 
-/** 付帯設備表: 1行のうち1つでも入力があれば「入力済み」とする */
-export function computeFittingsRowFilled(row: FittingsRow, values: Record<string, AnswerValue>): boolean {
-  const parts: ('e' | 'f' | 'g' | 'h' | 'text')[] =
-    row.mode === '自由記載' ? ['text'] : ['e', 'f', 'g', 'h'];
-  return parts.some((part) => isFilled(values[fittingsKey(row.row, part)]));
-}
-
-/** 付帯設備表(画面単位)の入力状況。母数はExcelの行数 */
-export function computeFittingsProgress(values: Record<string, AnswerValue>): Progress {
-  const filled = FITTINGS_ROWS.filter((row) => computeFittingsRowFilled(row, values)).length;
-  return toProgress(filled, FITTINGS_ROWS.length);
-}
-
-/** UI構成について.xlsxの大項目(画面単位)の入力状況 */
-export function computeUiSectionProgress(uiSectionId: string, values: Record<string, AnswerValue>): Progress {
-  const section = UI_SECTIONS.find((s) => s.id === uiSectionId);
-  if (!section) return toProgress(0, 0);
-  // 内容未実装(大項目名のみ)の画面は母数を持たない
-  return section.kind === 'fittings' ? computeFittingsProgress(values) : toProgress(0, 0);
-}
-
 /** 案件全体の入力状況と、大分類ごとの内訳 */
 export function computeAllProgress(
   rows: Pick<SectionAnswers, 'sectionId' | 'values'>[]
@@ -93,12 +70,6 @@ export function computeAllProgress(
   for (const section of SECTIONS) {
     const p = computeSectionProgress(section.id, valuesOf.get(section.id) ?? {});
     bySection[section.id] = p;
-    filled += p.filled;
-    total += p.total;
-  }
-  for (const uiSection of UI_SECTIONS) {
-    const p = computeUiSectionProgress(uiSection.id, valuesOf.get(uiSection.id) ?? {});
-    bySection[uiSection.id] = p;
     filled += p.filled;
     total += p.total;
   }
