@@ -73,6 +73,8 @@
 │   ├── README.md                 … セットアップ〜配置〜保守の手順(非技術者向け)
 │   └── src/
 │       ├── schema/sections.ts    … ★項目定義の本体(全244項目)。元Excelのセル番地付き
+│       ├── schema/uiSections.ts   … ★UI構成について.xlsxの大項目(①〜④)の画面定義
+│       ├── schema/fittings.ts     … ★付帯設備表の行定義(UI構成について.xlsx 2〜48行)
 │       ├── schema/wall.ts        … 擁壁調査の選択肢定義
 │       ├── schema/flow.ts        … 入力ステップの順序
 │       ├── pages/                … 画面(SectionPageが項目定義から自動生成)
@@ -150,6 +152,8 @@ npm run build   # 本番ビルド → app/dist
 | 3 | 本ファイル `docs/handover.md` | リポジトリ | **必須** |
 | 4 | `docs/open-issues.md`(要確認事項) | リポジトリ | **必須** |
 | 5 | `docs/excel-analysis.md`(Excel解析結果) | リポジトリ | 推奨 |
+| 5-2 | **「UI構成について.xlsx」の現物**(①〜④の大項目・付帯設備表の根拠) | 手元のファイル(リポジトリには無い) | **必須** |
+| 5-3 | `docs/ui-sections.md`(①〜④の画面構成と修正手順) | リポジトリ | 推奨 |
 | 6 | `docs/item-definitions.md`(全244項目の定義) | リポジトリ | 推奨 |
 | 7 | `docs/mapping-table.md`(Excelセル↔アプリ項目の対応表) | リポジトリ | 推奨 |
 | 8 | GitHubアカウントの操作権限 | 本人 | 公開作業を任せる場合は必須 |
