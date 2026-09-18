@@ -73,7 +73,7 @@
 │   ├── README.md                 … セットアップ〜配置〜保守の手順(非技術者向け)
 │   └── src/
 │       ├── schema/sections.ts    … ★項目定義の本体(全244項目)。元Excelのセル番地付き
-│       ├── schema/uiSections.ts   … ★UI構成について.xlsxの大項目(①〜④)の画面定義
+│       ├── schema/uiSections.ts   … ★画面構成の本体。大項目(①〜④)と、その中の画面の割り当て
 │       ├── schema/fittings.ts     … ★付帯設備表の行定義(UI構成について.xlsx 2〜48行)
 │       ├── schema/wall.ts        … 擁壁調査の選択肢定義
 │       ├── schema/flow.ts        … 入力ステップの順序

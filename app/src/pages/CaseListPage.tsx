@@ -5,6 +5,7 @@ import type { SurveyCase } from '../types';
 import { uid } from '../utils/id';
 import { createSampleCase } from '../utils/sampleData';
 import { deliverFile, exportCases } from '../utils/backup';
+import { firstStepPath } from '../schema/flow';
 
 const statusLabel: Record<SurveyCase['status'], { text: string; cls: string }> = {
   draft: { text: '下書き', cls: 'pill-draft' },
@@ -128,7 +129,7 @@ export function CaseListPage() {
             try {
               const id = await createSampleCase();
               await load();
-              navigate(`/case/${id}/seller-info`);
+              navigate(firstStepPath(id));
             } finally {
               setBusy(false);
             }
@@ -141,7 +142,7 @@ export function CaseListPage() {
 
         {filtered.map((c) => (
           <div className="case-item" key={c.id}>
-            <div style={{ cursor: 'pointer' }} onClick={() => navigate(`/case/${c.id}/seller-info`)}>
+            <div style={{ cursor: 'pointer' }} onClick={() => navigate(firstStepPath(c.id))}>
               <div className="case-item__name">{c.name || '(物件名未設定)'}</div>
               <div className="case-item__address">{c.address || '(所在地未設定)'}</div>
               <div className="case-item__meta">
