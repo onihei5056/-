@@ -5,17 +5,16 @@ import { useCaseProgress } from '../hooks/useCaseProgress';
 import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import { SectionTabs } from '../components/SectionTabs';
-import { nextStep, prevStep } from '../schema/flow';
-import { SECTIONS, getSectionById } from '../schema/sections';
+import { nextStep, prevStep, screenStep } from '../schema/flow';
+import { getSectionById } from '../schema/sections';
+import { UI_SECTIONS } from '../schema/uiSections';
 
 function sectionPath(caseId: string, sectionId: string): string {
-  return `/case/${caseId}/${sectionId}`;
+  return screenStep(sectionId)?.path(caseId) ?? `/case/${caseId}/${sectionId}`;
 }
 
 function sectionLabel(sectionId: string): string {
-  if (sectionId === 'equipment-photos') return '設備現況写真';
-  if (sectionId === 'wall-survey') return '擁壁調査';
-  return getSectionById(sectionId)?.title ?? sectionId;
+  return screenStep(sectionId)?.label ?? getSectionById(sectionId)?.title ?? sectionId;
 }
 
 export function ConfirmPage() {
@@ -50,31 +49,57 @@ export function ConfirmPage() {
 
         <div className="card">
           <h3 className="card-title">大分類ごとの入力状況</h3>
-          {SECTIONS.map((s) => {
-            const p = progress.bySection[s.id];
-            if (!p) return null;
-            return (
-              <div key={s.id} className="progress-row" onClick={() => navigate(sectionPath(caseId, s.id))}>
-                <span className="progress-row__label">{s.title}</span>
-                <span className="progress-row__bar">
-                  <span className="progress-row__fill" style={{ width: `${p.percent}%` }} />
-                </span>
-                <span className={`progress-row__count${p.total > 0 && p.filled === p.total ? ' complete' : ''}`}>
-                  {p.filled}/{p.total}
-                </span>
-              </div>
-            );
-          })}
-          <div className="progress-row" onClick={() => navigate(`/case/${caseId}/equipment-photos`)}>
-            <span className="progress-row__label">設備現況写真</span>
-            <span className="progress-row__bar" />
-            <span className="progress-row__count">{progress.photoCount}枚</span>
-          </div>
-          <div className="progress-row" onClick={() => navigate(`/case/${caseId}/wall-survey`)}>
-            <span className="progress-row__label">擁壁調査</span>
-            <span className="progress-row__bar" />
-            <span className="progress-row__count">{progress.wallCount}件</span>
-          </div>
+          {UI_SECTIONS.map((ui) => (
+            <div key={ui.id}>
+              <div className="progress-group-title">{ui.title}</div>
+              {ui.kind === 'fittings' ? (
+                <ProgressRow
+                  label="付帯設備表"
+                  filled={progress.bySection[ui.id]?.filled ?? 0}
+                  total={progress.bySection[ui.id]?.total ?? 0}
+                  percent={progress.bySection[ui.id]?.percent ?? 0}
+                  onClick={() => navigate(`/case/${caseId}/ui/${ui.id}`)}
+                />
+              ) : (
+                ui.children.map((childId) => {
+                  const step = screenStep(childId);
+                  if (!step) return null;
+                  if (childId === 'equipment-photos') {
+                    return (
+                      <ProgressRow
+                        key={childId}
+                        label={step.label}
+                        countText={`${progress.photoCount}枚`}
+                        onClick={() => navigate(step.path(caseId))}
+                      />
+                    );
+                  }
+                  if (childId === 'wall-survey') {
+                    return (
+                      <ProgressRow
+                        key={childId}
+                        label={step.label}
+                        countText={`${progress.wallCount}件`}
+                        onClick={() => navigate(step.path(caseId))}
+                      />
+                    );
+                  }
+                  const p = progress.bySection[childId];
+                  if (!p) return null;
+                  return (
+                    <ProgressRow
+                      key={childId}
+                      label={step.label}
+                      filled={p.filled}
+                      total={p.total}
+                      percent={p.percent}
+                      onClick={() => navigate(step.path(caseId))}
+                    />
+                  );
+                })
+              )}
+            </div>
+          ))}
         </div>
 
         {issues.length > 0 && (
@@ -105,6 +130,31 @@ export function ConfirmPage() {
         onNext={() => next && navigate(next.path(caseId))}
         nextLabel="PDFプレビューへ"
       />
+    </div>
+  );
+}
+
+interface ProgressRowProps {
+  label: string;
+  filled?: number;
+  total?: number;
+  percent?: number;
+  countText?: string;
+  onClick: () => void;
+}
+
+/** 大項目の下に並べる、画面ごとの入力状況1行 */
+function ProgressRow({ label, filled, total, percent, countText, onClick }: ProgressRowProps) {
+  const complete = total !== undefined && total > 0 && filled === total;
+  return (
+    <div className="progress-row" onClick={onClick}>
+      <span className="progress-row__label">{label}</span>
+      <span className="progress-row__bar">
+        {percent !== undefined && <span className="progress-row__fill" style={{ width: `${percent}%` }} />}
+      </span>
+      <span className={`progress-row__count${complete ? ' complete' : ''}`}>
+        {countText ?? `${filled}/${total}`}
+      </span>
     </div>
   );
 }

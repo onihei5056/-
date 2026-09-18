@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, getCurrentUser, getDeviceId, addAuditLog, sectionAnswerKey } from '../db/db';
 import { uid } from '../utils/id';
+import { firstStepPath } from '../schema/flow';
 
 export function CaseNewPage() {
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ export function CaseNewPage() {
       updatedBy: getCurrentUser()
     });
     await addAuditLog(id, 'create', '案件を新規作成');
-    navigate(`/case/${id}/seller-info`);
+    navigate(firstStepPath(id));
   };
 
   return (

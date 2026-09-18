@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { getUiSectionById } from '../schema/uiSections';
 import { useSectionAnswers } from '../hooks/useSectionAnswers';
 import { useCase } from '../hooks/useCase';
@@ -7,14 +7,12 @@ import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import { SectionTabs } from '../components/SectionTabs';
 import { FittingsForm } from '../components/FittingsForm';
-import { nextStep, prevStep } from '../schema/flow';
+import { nextStep, prevStep, screenStep } from '../schema/flow';
 import { computeUiSectionProgress } from '../utils/progress';
 
 /**
- * UI構成について.xlsxの大項目(①〜④)の画面。
- * schema/uiSections.ts の kind で中身を切り替える。
- *   fittings    … 付帯設備表の入力フォーム
- *   placeholder … 大項目名のみ(内容は追加指示を受けてから実装する)
+ * UI構成について.xlsxの大項目そのものが入力画面になるもの(現状は④付帯設備表のみ)。
+ * 小項目をまとめるだけの大項目(kind: 'group')を開いた場合は、最初の小項目へ転送する。
  * 回答は他の画面と同じ sectionAnswers テーブルに、画面IDをキーにして保存される。
  */
 export function UiSectionPage() {
@@ -27,6 +25,12 @@ export function UiSectionPage() {
 
   if (!section) {
     return <div className="page-body">画面が見つかりません。</div>;
+  }
+
+  // 小項目をまとめるだけの大項目は、最初の小項目の画面へ移動する
+  if (section.kind === 'group') {
+    const first = section.children.map(screenStep).find((s) => !!s);
+    return <Navigate to={first ? first.path(caseId) : '/'} replace />;
   }
 
   const sectionProgress = computeUiSectionProgress(uiSectionId, values);
@@ -60,13 +64,7 @@ export function UiSectionPage() {
           )}
         </h2>
 
-        {section.kind === 'fittings' ? (
-          <FittingsForm values={values} onChange={setValue} />
-        ) : (
-          <div className="card">
-            <p className="note-box">この大項目の入力内容は未設定です。</p>
-          </div>
-        )}
+        <FittingsForm values={values} onChange={setValue} />
       </div>
       <BottomNav
         onBack={prev ? () => navigate(prev.path(caseId)) : () => navigate('/')}
