@@ -4,6 +4,7 @@ import { db, getCurrentUser, setCurrentUser, addAuditLog } from '../db/db';
 import type { SurveyCase } from '../types';
 import { uid } from '../utils/id';
 import { createSampleCase } from '../utils/sampleData';
+import { deliverFile, exportCases } from '../utils/backup';
 
 const statusLabel: Record<SurveyCase['status'], { text: string; cls: string }> = {
   draft: { text: '下書き', cls: 'pill-draft' },
@@ -52,6 +53,18 @@ export function CaseListPage() {
     }
     await addAuditLog(newId, 'duplicate', `案件「${c.name}」を複製`);
     await load();
+  };
+
+  const handleExportOne = async (c: SurveyCase) => {
+    setBusy(true);
+    try {
+      const result = await exportCases([c.id]);
+      await deliverFile(result.blob, result.fileName);
+    } catch (e) {
+      window.alert('書き出しに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleDelete = async (c: SurveyCase) => {
@@ -141,6 +154,9 @@ export function CaseListPage() {
             <div className="photo-actions" style={{ marginTop: 10 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => handleDuplicate(c)}>
                 複製
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => handleExportOne(c)}>
+                書き出し
               </button>
               <button className="btn btn-danger btn-sm" onClick={() => handleDelete(c)}>
                 削除
