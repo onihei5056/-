@@ -1,4 +1,5 @@
 import { SECTIONS } from './sections';
+import { UI_SECTIONS } from './uiSections';
 
 export interface FlowStep {
   id: string;
@@ -8,6 +9,8 @@ export interface FlowStep {
 
 export const FLOW_STEPS: FlowStep[] = [
   ...SECTIONS.map((s) => ({ id: s.id, label: s.title, path: (caseId: string) => `/case/${caseId}/${s.id}` })),
+  // UI構成について.xlsx の大項目(①〜④)
+  ...UI_SECTIONS.map((s) => ({ id: s.id, label: s.title, path: (caseId: string) => `/case/${caseId}/ui/${s.id}` })),
   { id: 'equipment-photos', label: '設備現況写真', path: (caseId: string) => `/case/${caseId}/equipment-photos` },
   { id: 'wall-survey', label: '擁壁調査', path: (caseId: string) => `/case/${caseId}/wall-survey` },
   { id: 'confirm', label: '入力内容確認', path: (caseId: string) => `/case/${caseId}/confirm` },
