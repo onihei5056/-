@@ -493,23 +493,3 @@ body {
   body { background: var(--color-bg); }
   .app-shell { box-shadow: none; }
 }
-
-/* ===== 付帯設備表(UI構成について.xlsx) ===== */
-.fittings-row {
-  padding: 14px 0;
-  border-bottom: 1px dashed var(--color-border);
-}
-.fittings-row:last-child { border-bottom: none; padding-bottom: 0; }
-.fittings-row__title {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--color-primary);
-  margin-bottom: 8px;
-}
-.fittings-sub { margin-top: 10px; }
-.fittings-sub__label {
-  font-size: 0.8rem;
-  color: #556;
-  font-weight: 700;
-  margin-bottom: 6px;
-}

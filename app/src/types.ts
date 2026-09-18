@@ -53,30 +53,6 @@ export interface FieldDef {
   needsConfirmation?: boolean; // 元Excelの記載だけでは確定できずアプリ側で解釈した項目
 }
 
-/**
- * 付帯設備表(UI構成について.xlsx「付帯設備表」シート)の1行。
- * Excelの1行=アプリの1入力行。row(Excelの行番号)が保存キーになるため、
- * 中項目名・小項目名が重複していても別々の入力として扱われる。
- */
-export interface FittingsRow {
-  /** Excelの行番号(2〜48)。保存キーの元になるため変更しないこと */
-  row: number;
-  /** B列 中項目(Excelで空欄の行は直前の中項目を補完済み) */
-  middle: string;
-  /** C列 小項目(備考行は空) */
-  small: string;
-  /** D列 チェック方式。'チェックボックス' または '自由記載'。この文字列自体は入力欄にしない */
-  mode: string;
-  /** E列 項目名(例: 有・無)。1つだけ選べる */
-  e?: string;
-  /** F列 2項目目。「・」区切りの選択肢。既定は複数選択 */
-  f?: string;
-  /** G列 追加自由入力項目の見出し。無い行では欄ごと表示しない */
-  g?: string;
-  /** この行から新しい中項目のまとまりが始まるか */
-  startsGroup: boolean;
-}
-
 export interface SubGroup {
   id: string;
   title: string; // 中分類

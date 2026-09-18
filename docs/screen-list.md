@@ -11,17 +11,13 @@
 | 7 | 飲用水・電気・ガス・排水施設 | `#/case/:id/utilities` | `SectionPage` | 不動産調査シート2026.3.1 40〜53行 |
 | 8 | 周辺環境他 | `#/case/:id/surroundings` | `SectionPage` | 不動産調査シート2026.3.1 54〜67行(＋旧版A80) |
 | 9 | マンション調査事項 | `#/case/:id/mansion` | `SectionPage` | 不動産調査シート2026.3.1 68〜74行 |
-| 10-1 | ①役所調査(大項目名のみ) | `#/case/:id/ui/ui-city-office` | `UiSectionPage` | UI構成について.xlsx 大項目シート |
-| 10-2 | ②物件調査(大項目名のみ) | `#/case/:id/ui/ui-property` | `UiSectionPage` | UI構成について.xlsx 大項目シート |
-| 10-3 | ③物件状況(大項目名のみ) | `#/case/:id/ui/ui-condition` | `UiSectionPage` | UI構成について.xlsx 大項目シート |
-| 10-4 | ④付帯設備表 | `#/case/:id/ui/ui-fittings` | `UiSectionPage` + `FittingsForm` | UI構成について.xlsx 付帯設備表シート 2〜48行 |
-| 11 | 設備現況写真 | `#/case/:id/equipment-photos` | `EquipmentPhotosPage` + `PhotoManager` | 設備現況写真シート |
-| 12 | 擁壁調査シート | `#/case/:id/wall-survey` | `WallSurveyPage` + `PhotoManager` | 擁壁調査シート |
-| 13 | 入力内容確認 | `#/case/:id/confirm` | `ConfirmPage` | - |
-| 14 | PDFプレビュー | `#/case/:id/pdf-preview` | `PdfPreviewPage` | - |
-| 15 | 設定 | `#/settings` | `SettingsPage` | - |
+| 10 | 設備現況写真 | `#/case/:id/equipment-photos` | `EquipmentPhotosPage` + `PhotoManager` | 設備現況写真シート |
+| 11 | 擁壁調査シート | `#/case/:id/wall-survey` | `WallSurveyPage` + `PhotoManager` | 擁壁調査シート |
+| 12 | 入力内容確認 | `#/case/:id/confirm` | `ConfirmPage` | - |
+| 13 | PDFプレビュー | `#/case/:id/pdf-preview` | `PdfPreviewPage` | - |
+| 14 | 設定 | `#/settings` | `SettingsPage` | - |
 
-画面3〜14は「戻る/次へ」で順に辿れるほか、各画面上部の**目次タブ**(`SectionTabs`)から
+画面3〜13は「戻る/次へ」で順に辿れるほか、各画面上部の**目次タブ**(`SectionTabs`)から
 任意の大分類へ直接移動できます。順序は `app/src/schema/flow.ts` の `FLOW_STEPS` で一元管理しています。
 
 各入力画面は共通の以下の要素を持ちます。
@@ -42,11 +38,3 @@
 画面3〜9は項目定義スキーマ(`app/src/schema/sections.ts`)から `SectionPage` が自動生成しており、
 項目の追加・変更はスキーマの編集のみで反映されます。擁壁調査シートのみ、元Excelの帳票構造が
 特殊(根拠法令×許可/検査済証のマトリクス、写真6枠)なため専用画面として実装しています。
-
-### ①〜④の大項目画面(UI構成について.xlsx)
-
-「UI構成について.xlsx」の大項目シートに記載された4つの大項目を画面化したものです。
-現時点では **④付帯設備表のみ入力画面を実装**し、①②③は大項目名のみを表示します
-(追加指示を受けてから内容を実装する前提)。
-
-詳細と修正手順は `docs/ui-sections.md` を参照してください。

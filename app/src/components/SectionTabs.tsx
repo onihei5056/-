@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { SECTIONS } from '../schema/sections';
-import { UI_SECTIONS } from '../schema/uiSections';
 import type { CaseProgress } from '../hooks/useCaseProgress';
 
 interface Props {
@@ -25,17 +24,6 @@ export function SectionTabs({ caseId, current, progress }: Props) {
         label: s.title,
         path: `/case/${caseId}/${s.id}`,
         badge: p ? `${p.filled}/${p.total}` : '',
-        done: !!p && p.total > 0 && p.filled === p.total,
-        started: !!p && p.filled > 0
-      };
-    }),
-    ...UI_SECTIONS.map((s) => {
-      const p = progress.bySection[s.id];
-      return {
-        id: s.id,
-        label: s.title,
-        path: `/case/${caseId}/ui/${s.id}`,
-        badge: p && p.total > 0 ? `${p.filled}/${p.total}` : '',
         done: !!p && p.total > 0 && p.filled === p.total,
         started: !!p && p.filled > 0
       };

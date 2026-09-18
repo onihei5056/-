@@ -14,7 +14,6 @@ const WallSurveyPage = lazy(() => import('./pages/WallSurveyPage').then((m) => (
 const ConfirmPage = lazy(() => import('./pages/ConfirmPage').then((m) => ({ default: m.ConfirmPage })));
 // PDF出力はjsPDF/html2canvasを含み容量が大きいため、遷移時に初めて読み込む
 const PdfPreviewPage = lazy(() => import('./pages/PdfPreviewPage').then((m) => ({ default: m.PdfPreviewPage })));
-const UiSectionPage = lazy(() => import('./pages/UiSectionPage').then((m) => ({ default: m.UiSectionPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function LoadingFallback() {
@@ -34,7 +33,6 @@ export function App() {
             <Route path="/" element={<CaseListPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/case/new" element={<CaseNewPage />} />
-            <Route path="/case/:caseId/ui/:uiSectionId" element={<UiSectionPage />} />
             <Route path="/case/:caseId/equipment-photos" element={<EquipmentPhotosPage />} />
             <Route path="/case/:caseId/wall-survey" element={<WallSurveyPage />} />
             <Route path="/case/:caseId/confirm" element={<ConfirmPage />} />
