@@ -29,6 +29,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: 'index.html',
+        // 同じサイト内の別アプリ(/workout/, /quarto/)はこのアプリの画面に差し替えない
+        navigateFallbackDenylist: [/\/workout\//, /\/quarto\//],
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'image',
