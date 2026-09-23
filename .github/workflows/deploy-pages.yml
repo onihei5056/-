@@ -27,9 +27,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            app/package-lock.json
-            workout/package-lock.json
+          cache-dependency-path: app/package-lock.json
 
       - name: 依存パッケージをインストール
         working-directory: app
@@ -39,10 +37,6 @@ jobs:
         working-directory: app
         run: npm run build
 
-      - name: 筋トレ記録アプリをビルド
-        working-directory: workout
-        run: npm ci && npm run build
-
       - name: 公開用フォルダを準備
         run: |
           # 調査アプリをサイトの入口(ルート)に配置する
@@ -50,8 +44,6 @@ jobs:
           # 既存のクアルトゲームは /quarto/ に残す
           mkdir -p ./_site/quarto
           cp index.html ./_site/quarto/index.html
-          # 筋トレ記録アプリは /workout/ に配置する
-          cp -r workout/dist ./_site/workout
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
